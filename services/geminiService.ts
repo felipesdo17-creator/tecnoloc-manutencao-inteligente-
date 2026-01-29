@@ -11,71 +11,63 @@ export const geminiService = {
     previousSolutions: string | null,
     imageBase64: string | null
   ): Promise<DiagnosticResult> => {
-    const prompt = `
-      VOCÊ É UM ASSISTENTE TÉCNICO EXPERT DA TECNOLOC ESPECIALIZADO EM ${equipmentInfo.category.toUpperCase()}.
+    // Defined system persona and core instructions separately as per latest recommendations
+    const systemInstruction = `
+      VOCÊ É UM ENGENHEIRO DE MANUTENÇÃO EXPERT DA TECNOLOC.
+      ESPECIALIDADE ATUAL: Defeitos do tipo ${equipmentInfo.category.toUpperCase()}.
       
-      CONTEXTO DO EQUIPAMENTO:
-      - Nome: ${equipmentInfo.name}
-      - Marca: ${equipmentInfo.brand}
-      - Modelo: ${equipmentInfo.model}
-      - Categoria de Defeito: ${equipmentInfo.category} (Foque a análise técnica nesta área)
-      
-      PROBLEMA RELATADO:
-      "${equipmentInfo.defect}"
-      
-      BASE DE CONHECIMENTO (MANUAL):
-      ${manualContent || "Não há manual disponível para este modelo específico."}
-      
-      HISTÓRICO DE CASOS SIMILARES NA TECNOLOC:
-      ${previousSolutions || "Sem histórico prévio disponível."}
-      
-      SUA TAREFA:
-      Analise os dados técnicos, a categoria de erro e forneça um diagnóstico estruturado.
-      Se for ELÉTRICO, considere sensores, fiação, baterias e módulos.
-      Se for MECÂNICO, considere hidráulica, motor, engrenagens e vedações.
-      Sempre leve em conta a experiência de casos anteriores da Tecnoloc para sugerir soluções práticas além do que está no manual.
+      TAREFA:
+      Forneça um diagnóstico técnico focado em falhas ${equipmentInfo.category}. 
+      Utilize tanto o manual quanto a "experiência de campo" fornecida para sugerir soluções que realmente funcionam no dia a dia, indo além do óbvio.
+      Retorne obrigatoriamente um objeto JSON válido conforme o esquema de resposta solicitado.
     `;
 
-    const contents: any[] = [{ text: prompt }];
+    const userPrompt = `
+      EQUIPAMENTO: ${equipmentInfo.name} (${equipmentInfo.brand} ${equipmentInfo.model})
+      RELATO DO DEFEITO: "${equipmentInfo.defect}"
+      
+      BASE DE CONHECIMENTO (MANUAL):
+      ${manualContent || "Não disponível."}
+      
+      EXPERIÊNCIA DE CAMPO (CASOS ANTERIORES):
+      ${previousSolutions || "Sem registros anteriores para este caso."}
+    `;
+
+    const contents: any[] = [{ text: userPrompt }];
     if (imageBase64) {
       contents.push({
-        inlineData: {
-          mimeType: 'image/jpeg',
-          data: imageBase64
-        }
+        inlineData: { mimeType: 'image/jpeg', data: imageBase64 }
       });
     }
 
+    // Call generateContent with specified model and config containing systemInstruction
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: { parts: contents },
       config: {
+        systemInstruction: systemInstruction,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            possible_causes: {
-              type: Type.ARRAY,
+            possible_causes: { 
+              type: Type.ARRAY, 
               items: { type: Type.STRING },
-              description: "Lista de causas prováveis focada em " + equipmentInfo.category
+              description: 'Lista de causas técnicas prováveis do defeito.'
             },
             solutions: {
               type: Type.ARRAY,
               items: {
                 type: Type.OBJECT,
                 properties: {
-                  title: { type: Type.STRING },
-                  steps: { 
-                    type: Type.ARRAY,
-                    items: { type: Type.STRING }
-                  },
-                  difficulty: { 
-                    type: Type.STRING,
-                    description: "Fácil, Média ou Difícil"
-                  }
+                  title: { type: Type.STRING, description: 'Título curto da solução.' },
+                  steps: { type: Type.ARRAY, items: { type: Type.STRING }, description: 'Passo a passo da execução.' },
+                  difficulty: { type: Type.STRING, description: 'Nível: Fácil, Média ou Difícil.' }
                 },
-                required: ["title", "steps", "difficulty"]
-              }
+                required: ["title", "steps", "difficulty"],
+                propertyOrdering: ["title", "steps", "difficulty"]
+              },
+              description: 'Sugestões de soluções técnicas detalhadas.'
             }
           },
           required: ["possible_causes", "solutions"]
@@ -83,11 +75,8 @@ export const geminiService = {
       }
     });
 
-    try {
-      const text = response.text || '{}';
-      return JSON.parse(text);
-    } catch (e) {
-      throw new Error("Falha ao processar resposta da IA: " + e);
-    }
+    // Access the .text property directly instead of calling it as a method
+    const jsonStr = response.text || '{}';
+    return JSON.parse(jsonStr);
   }
 };
