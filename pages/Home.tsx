@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FileText, Search, History, ChevronRight, Zap, ClipboardCheck, LayoutDashboard, LogOut, User as UserIcon } from 'lucide-react';
+import { FileText, Search, History, ChevronRight, Zap, ClipboardCheck, LayoutDashboard, LogOut, User as UserIcon, ShieldCheck } from 'lucide-react';
 import { dataService } from '../services/dataService';
 import { Button } from '../components/UI';
 import { User } from '@supabase/supabase-js';
@@ -49,6 +49,7 @@ const NavCard: React.FC<{
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
+  const ADMIN_EMAIL = 'felipe.sdo17@gmail.com';
 
   useEffect(() => {
     dataService.getCurrentUser().then(setUser);
@@ -59,6 +60,8 @@ export default function Home() {
       dataService.signOut();
     }
   };
+
+  const isAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
 
   return (
     <div className="min-h-screen relative overflow-hidden font-sans" style={{
@@ -73,9 +76,16 @@ export default function Home() {
       <div className="absolute top-6 right-6 z-50 flex items-center gap-3">
         <div className="flex flex-col items-end mr-2">
            <span className="text-white font-bold text-sm leading-none">{user?.email?.split('@')[0]}</span>
-           <span className="text-green-400 text-[10px] uppercase font-black tracking-widest mt-1">Conectado</span>
+           <div className="flex items-center gap-1.5 mt-1">
+             {isAdmin && (
+               <span className="flex items-center gap-1 bg-indigo-500 text-white text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-tighter">
+                 <ShieldCheck className="w-2.5 h-2.5" /> Administrador
+               </span>
+             )}
+             <span className="text-green-400 text-[10px] uppercase font-black tracking-widest">Conectado</span>
+           </div>
         </div>
-        <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center border border-white/20 text-white">
+        <div className={`w-10 h-10 rounded-full flex items-center justify-center border text-white ${isAdmin ? 'bg-indigo-600 border-indigo-400 shadow-lg shadow-indigo-600/30' : 'bg-white/10 border-white/20'}`}>
            <UserIcon className="w-5 h-5" />
         </div>
         <button 

@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Mail, Lock, LogIn, UserPlus, ArrowRight, ShieldCheck, Database, Loader2 } from 'lucide-react';
+import { Mail, Lock, LogIn, UserPlus, ArrowRight, ShieldCheck, Database, Loader2, KeyRound, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, Button, Input, Label } from '../components/UI';
 import { dataService } from '../services/dataService';
 import { toast } from 'sonner';
@@ -11,11 +11,13 @@ export default function AuthPage() {
   const location = useLocation();
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [isForcedChange, setIsForcedChange] = useState(false);
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   
-  // Garantimos que o modal não apareça automaticamente
   const [showConfig, setShowConfig] = useState(false);
   
   const [dbConfig, setDbConfig] = useState({
@@ -25,27 +27,53 @@ export default function AuthPage() {
 
   const from = location.state?.from?.pathname || "/";
 
+  const ADMIN_EMAIL = 'felipe.sdo17@gmail.com';
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     setLoading(true);
+    
     try {
       if (isLogin) {
         await dataService.signIn(email, password);
-        toast.success("Bem-vindo de volta!");
+        
+        // Regra especial solicitada: Se for o felipe, forçar troca de senha
+        if (email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+          setIsForcedChange(true);
+          toast.info("Acesso Administrativo: Por favor, altere sua senha inicial.");
+        } else {
+          toast.success("Bem-vindo de volta!");
+          navigate(from, { replace: true });
+        }
       } else {
         await dataService.signUp(email, password);
         toast.success("Conta criada! Verifique seu e-mail.");
+        setIsLogin(true);
       }
-      navigate(from, { replace: true });
     } catch (error: any) {
-      // Se o erro for de configuração, avisamos o usuário
       if (error.message?.includes("Backend não configurado")) {
-        toast.error("Erro de conexão: Banco de dados não configurado no ambiente.");
-        setShowConfig(true); // Só mostra se falhar por falta de config
+        toast.error("Erro de conexão: Banco de dados não configurado.");
+        setShowConfig(true);
       } else {
         toast.error(error.message || "Falha na autenticação. Verifique e-mail e senha.");
       }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword.length < 6) return toast.error("A senha deve ter no mínimo 6 caracteres.");
+    if (newPassword !== confirmPassword) return toast.error("As senhas não coincidem.");
+    
+    setLoading(true);
+    try {
+      await dataService.updatePassword(newPassword);
+      toast.success("Senha alterada com sucesso!");
+      navigate(from, { replace: true });
+    } catch (error: any) {
+      toast.error("Erro ao atualizar senha: " + error.message);
     } finally {
       setLoading(false);
     }
@@ -59,10 +87,78 @@ export default function AuthPage() {
     window.location.reload();
   };
 
+  if (isForcedChange) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-slate-950 font-sans relative overflow-hidden">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-500/20 rounded-full blur-[120px]" />
+        
+        <div className="w-full max-w-md relative z-10">
+          <div className="text-center mb-8">
+            <div className="inline-block p-4 bg-indigo-600 rounded-3xl mb-4 shadow-2xl animate-pulse">
+              <KeyRound className="w-10 h-10 text-white" />
+            </div>
+            <h1 className="text-3xl font-black text-white tracking-tight">Redefinir Senha</h1>
+            <p className="text-slate-400 mt-2">Segurança Administrativa Tecnoloc</p>
+          </div>
+
+          <Card className="border-indigo-500/30 bg-slate-900/80 backdrop-blur-xl shadow-2xl border-2">
+            <CardContent className="p-8 space-y-6">
+              <div className="p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-xl flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" />
+                <p className="text-xs text-indigo-100 leading-relaxed font-medium">
+                  Olá felipe.sdo17@gmail.com, por motivos de segurança do portal, sua primeira ação deve ser a atualização da sua credencial privada.
+                </p>
+              </div>
+
+              <form onSubmit={handleUpdatePassword} className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-slate-300">Nova Senha</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 w-5 h-5 text-slate-500" />
+                    <Input 
+                      type="password" 
+                      required 
+                      value={newPassword}
+                      onChange={e => setNewPassword(e.target.value)}
+                      className="pl-11 bg-slate-800 border-slate-700 text-white focus:ring-indigo-500" 
+                      placeholder="No mínimo 6 caracteres" 
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-slate-300">Confirmar Nova Senha</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 w-5 h-5 text-slate-500" />
+                    <Input 
+                      type="password" 
+                      required 
+                      value={confirmPassword}
+                      onChange={e => setConfirmPassword(e.target.value)}
+                      className="pl-11 bg-slate-800 border-slate-700 text-white focus:ring-indigo-500" 
+                      placeholder="Repita a nova senha" 
+                    />
+                  </div>
+                </div>
+
+                <Button 
+                  type="submit" 
+                  disabled={loading}
+                  className="w-full h-14 bg-indigo-600 hover:bg-indigo-500 font-black uppercase tracking-widest text-lg shadow-indigo-600/20 shadow-xl"
+                >
+                  {loading ? <Loader2 className="animate-spin" /> : 'Atualizar Credencial'}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-slate-900 overflow-hidden relative font-sans">
-      {/* Background Decor */}
-      <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+      <div className="absolute inset-0 opacity-10 pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-500 rounded-full blur-[120px]" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-green-500 rounded-full blur-[120px]" />
       </div>
@@ -80,7 +176,7 @@ export default function AuthPage() {
           <p className="text-slate-400 mt-2">Acesse o sistema de diagnóstico inteligente.</p>
         </div>
 
-        <Card className="border-slate-800 bg-slate-900/50 backdrop-blur-xl shadow-2xl overflow-visible">
+        <Card className="border-slate-800 bg-slate-900/50 backdrop-blur-xl shadow-2xl">
           <CardContent className="p-8">
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-2">

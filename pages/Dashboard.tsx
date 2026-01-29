@@ -9,22 +9,29 @@ import {
   Search,
   ChevronRight,
   History,
-  Zap
+  Zap,
+  ShieldCheck
 } from "lucide-react";
 import { dataService } from '../services/dataService';
+import { User } from '@supabase/supabase-js';
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const [logsCount, setLogsCount] = useState(0);
+  const [user, setUser] = useState<User | null>(null);
+  const ADMIN_EMAIL = 'felipe.sdo17@gmail.com';
 
   useEffect(() => {
-    // Fix: dataService.getLogs() returns a Promise, so we need to await it.
-    const fetchLogs = async () => {
+    const fetchData = async () => {
       const logs = await dataService.getLogs();
       setLogsCount(logs.length);
+      const currentUser = await dataService.getCurrentUser();
+      setUser(currentUser);
     };
-    fetchLogs();
+    fetchData();
   }, []);
+
+  const isAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
 
   return (
     <div className="flex h-screen bg-slate-50">
@@ -32,7 +39,7 @@ export default function Dashboard() {
       <aside className="w-64 bg-slate-900 text-white flex flex-col hidden md:flex shrink-0">
         <div className="p-6 border-b border-slate-800">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-green-500 rounded flex items-center justify-center font-bold">T</div>
+            <div className={`w-8 h-8 rounded flex items-center justify-center font-bold ${isAdmin ? 'bg-indigo-600' : 'bg-green-500'}`}>T</div>
             <div>
               <h2 className="text-lg font-bold leading-none">Tecnoloc</h2>
               <p className="text-[10px] text-slate-400 mt-1 uppercase tracking-wider">Gestão de Frotas</p>
@@ -76,11 +83,14 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold text-slate-800">Visão Geral</h1>
           <div className="flex items-center gap-4">
             <div className="text-right">
-              <p className="text-sm font-semibold text-slate-900">Fabio Silva</p>
-              <p className="text-xs text-slate-500">Técnico Sênior</p>
+              <p className="text-sm font-semibold text-slate-900">{user?.email?.split('@')[0]}</p>
+              <div className="flex items-center justify-end gap-1">
+                {isAdmin && <ShieldCheck className="w-3 h-3 text-indigo-600" />}
+                <p className="text-xs text-slate-500">{isAdmin ? 'Administrador' : 'Técnico Sênior'}</p>
+              </div>
             </div>
-            <div className="w-10 h-10 rounded-full bg-slate-200 border border-slate-300 flex items-center justify-center text-slate-500 font-bold uppercase">
-              FS
+            <div className={`w-10 h-10 rounded-full border flex items-center justify-center font-bold uppercase ${isAdmin ? 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-slate-200 border-slate-300 text-slate-500'}`}>
+              {user?.email?.substring(0, 2).toUpperCase()}
             </div>
           </div>
         </header>
@@ -125,7 +135,6 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Quick Actions / Chart Placeholder */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 bg-white p-8 rounded-xl border border-slate-200 min-h-[400px] flex flex-col items-center justify-center text-center text-slate-400">
               <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">

@@ -67,6 +67,14 @@ export const dataService = {
     return data;
   },
 
+  updatePassword: async (newPassword: string) => {
+    const sb = getSupabase();
+    if (!sb) throw new Error("Backend não configurado.");
+    const { data, error } = await sb.auth.updateUser({ password: newPassword });
+    if (error) throw error;
+    return data;
+  },
+
   signOut: async () => {
     const sb = getSupabase();
     if (sb) await sb.auth.signOut();
