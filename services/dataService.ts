@@ -1,21 +1,21 @@
 
 import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
-import { MaintenanceLog, Manual } from '../types.ts';
+import { MaintenanceLog, Manual } from '../types';
 
 const getCredential = (key: string): string | undefined => {
   try {
-    // Acesso seguro ao process.env para evitar erros de build em ambientes não-node
     let envValue = undefined;
+    
+    // Acesso seguro ao process.env
     if (typeof process !== 'undefined' && process.env) {
       envValue = (process.env as any)[key];
     }
     
     if (envValue && envValue !== '') return envValue;
     
-    // Fallback: Local Storage (apenas se não houver no ambiente)
     const localValue = localStorage.getItem(key);
     if (localValue && localValue !== '') return localValue;
-  } catch {
+  } catch (e) {
     return undefined;
   }
   return undefined;
@@ -51,10 +51,9 @@ const isConfigured = () => {
 export const dataService = {
   isConfigured,
   
-  // Auth Methods
   signIn: async (email: string, pass: string) => {
     const sb = getSupabase();
-    if (!sb) throw new Error("Backend não configurado. Verifique as variáveis de ambiente no Vercel (SUPABASE_URL e SUPABASE_ANON_KEY).");
+    if (!sb) throw new Error("Backend não configurado. Verifique as variáveis de ambiente no Vercel.");
     const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
     if (error) throw error;
     return data;
@@ -86,7 +85,6 @@ export const dataService = {
     localStorage.setItem('SUPABASE_ANON_KEY', key.trim());
   },
 
-  // Data Methods
   getLogs: async (): Promise<MaintenanceLog[]> => {
     const sb = getSupabase();
     if (!sb) return [];

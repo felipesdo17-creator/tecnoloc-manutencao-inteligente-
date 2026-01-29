@@ -2,7 +2,6 @@
 import React from 'react';
 import { Loader2 } from 'lucide-react';
 
-// Common interface for components that can accept children and extra props (like key)
 interface UIProps {
   children?: React.ReactNode;
   className?: string;
