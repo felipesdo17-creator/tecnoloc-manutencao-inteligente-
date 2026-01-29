@@ -4,7 +4,8 @@ import { DiagnosticResult } from "../types";
 
 const getApiKey = (): string => {
   try {
-    return (process.env as any).API_KEY || '';
+    // Tenta primeiro variável de ambiente, depois localStorage
+    return (process.env as any).API_KEY || localStorage.getItem('API_KEY') || '';
   } catch {
     return '';
   }
@@ -19,7 +20,7 @@ export const geminiService = {
   ): Promise<DiagnosticResult> => {
     const apiKey = getApiKey();
     if (!apiKey) {
-      throw new Error("Chave de API (Gemini) não encontrada nas variáveis de ambiente.");
+      throw new Error("Chave de API (Gemini) não configurada.");
     }
 
     const ai = new GoogleGenAI({ apiKey });

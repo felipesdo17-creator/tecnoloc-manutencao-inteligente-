@@ -1,34 +1,66 @@
 
-import { createClient } from '@supabase/supabase-js';
-import { MaintenanceLog, Manual } from '../types';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { MaintenanceLog, Manual } from '../types.ts';
 
-// Função auxiliar para acessar env de forma segura no navegador
-const getEnv = (key: string): string | undefined => {
+// Função auxiliar para acessar credenciais de forma flexível (Env ou LocalStorage)
+const getCredential = (key: string): string | undefined => {
   try {
-    return (process.env as any)[key];
+    const envValue = (process.env as any)[key];
+    if (envValue && envValue !== '') return envValue;
+    
+    const localValue = localStorage.getItem(key);
+    if (localValue && localValue !== '') return localValue;
   } catch {
     return undefined;
   }
+  return undefined;
 };
 
-const SUPABASE_URL = getEnv('SUPABASE_URL') || 'https://placeholder-url.supabase.co';
-const SUPABASE_ANON_KEY = getEnv('SUPABASE_ANON_KEY') || 'placeholder-key';
+let supabaseInstance: SupabaseClient | null = null;
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Inicialização preguiçosa: só cria o cliente se necessário e se houver dados válidos
+const getSupabase = (): SupabaseClient | null => {
+  if (supabaseInstance) return supabaseInstance;
+
+  const url = getCredential('SUPABASE_URL');
+  const key = getCredential('SUPABASE_ANON_KEY');
+
+  // Validação básica para evitar erros de inicialização com placeholders
+  if (!url || !url.startsWith('https://') || !key || key.length < 10) {
+    return null;
+  }
+
+  try {
+    supabaseInstance = createClient(url, key);
+    return supabaseInstance;
+  } catch (error) {
+    console.error("Erro crítico ao inicializar Supabase:", error);
+    return null;
+  }
+};
 
 const isConfigured = () => {
-  const url = getEnv('SUPABASE_URL');
-  const key = getEnv('SUPABASE_ANON_KEY');
-  return url && url !== '' && key && key !== '';
+  const url = getCredential('SUPABASE_URL');
+  const key = getCredential('SUPABASE_ANON_KEY');
+  const geminiKey = getCredential('API_KEY');
+  return !!(url && url.includes('supabase.co') && key && key.length > 20 && geminiKey);
 };
 
 export const dataService = {
+  isConfigured,
+  
+  setCredentials: (url: string, key: string, geminiKey: string) => {
+    localStorage.setItem('SUPABASE_URL', url.trim());
+    localStorage.setItem('SUPABASE_ANON_KEY', key.trim());
+    localStorage.setItem('API_KEY', geminiKey.trim());
+    // Força a reinicialização completa para limpar o estado
+    window.location.href = window.location.origin + window.location.pathname;
+  },
+
   getLogs: async (): Promise<MaintenanceLog[]> => {
-    if (!isConfigured()) {
-      console.warn("Supabase não configurado.");
-      return [];
-    }
-    const { data, error } = await supabase
+    const sb = getSupabase();
+    if (!sb || !isConfigured()) return [];
+    const { data, error } = await sb
       .from('maintenance_logs')
       .select('*')
       .order('date', { ascending: false });
@@ -37,16 +69,18 @@ export const dataService = {
   },
 
   saveLog: async (log: Omit<MaintenanceLog, 'id' | 'date'>): Promise<void> => {
-    if (!isConfigured()) throw new Error("Supabase não configurado.");
-    const { error } = await supabase
+    const sb = getSupabase();
+    if (!sb || !isConfigured()) throw new Error("Configuração incompleta.");
+    const { error } = await sb
       .from('maintenance_logs')
       .insert([{ ...log, date: new Date().toISOString() }]);
     if (error) throw error;
   },
 
   getManuals: async (): Promise<Manual[]> => {
-    if (!isConfigured()) return [];
-    const { data, error } = await supabase
+    const sb = getSupabase();
+    if (!sb || !isConfigured()) return [];
+    const { data, error } = await sb
       .from('manuals')
       .select('*')
       .order('created_at', { ascending: false });
@@ -55,8 +89,9 @@ export const dataService = {
   },
 
   saveManual: async (manual: Omit<Manual, 'id'>): Promise<Manual> => {
-    if (!isConfigured()) throw new Error("Supabase não configurado.");
-    const { data, error } = await supabase
+    const sb = getSupabase();
+    if (!sb || !isConfigured()) throw new Error("Configuração incompleta.");
+    const { data, error } = await sb
       .from('manuals')
       .insert([manual])
       .select()
@@ -66,14 +101,16 @@ export const dataService = {
   },
 
   deleteManual: async (id: string): Promise<void> => {
-    if (!isConfigured()) throw new Error("Supabase não configurado.");
-    const { error } = await supabase.from('manuals').delete().eq('id', id);
+    const sb = getSupabase();
+    if (!sb || !isConfigured()) throw new Error("Configuração incompleta.");
+    const { error } = await sb.from('manuals').delete().eq('id', id);
     if (error) throw error;
   },
 
   findManualByModel: async (modelName: string): Promise<Manual | undefined> => {
-    if (!isConfigured() || !modelName) return undefined;
-    const { data, error } = await supabase
+    const sb = getSupabase();
+    if (!sb || !isConfigured() || !modelName) return undefined;
+    const { data, error } = await sb
       .from('manuals')
       .select('*')
       .ilike('model', `%${modelName}%`)
@@ -82,15 +119,16 @@ export const dataService = {
   },
 
   uploadFile: async (file: File): Promise<{ file_url: string; file_name: string }> => {
-    if (!isConfigured()) throw new Error("Supabase não configurado.");
+    const sb = getSupabase();
+    if (!sb || !isConfigured()) throw new Error("Configuração incompleta.");
     const fileExt = file.name.split('.').pop();
     const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
     const filePath = `manuals/${fileName}`;
-    const { error: uploadError } = await supabase.storage
+    const { error: uploadError } = await sb.storage
       .from('tecnoloc_assets')
       .upload(filePath, file);
     if (uploadError) throw uploadError;
-    const { data } = supabase.storage.from('tecnoloc_assets').getPublicUrl(filePath);
+    const { data } = sb.storage.from('tecnoloc_assets').getPublicUrl(filePath);
     return { file_url: data.publicUrl, file_name: file.name };
   }
 };
