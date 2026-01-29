@@ -2,7 +2,13 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { DiagnosticResult } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const getApiKey = (): string => {
+  try {
+    return (process.env as any).API_KEY || '';
+  } catch {
+    return '';
+  }
+};
 
 export const geminiService = {
   analyzeEquipment: async (
@@ -11,7 +17,13 @@ export const geminiService = {
     previousSolutions: string | null,
     imageBase64: string | null
   ): Promise<DiagnosticResult> => {
-    // Defined system persona and core instructions separately as per latest recommendations
+    const apiKey = getApiKey();
+    if (!apiKey) {
+      throw new Error("Chave de API (Gemini) não encontrada nas variáveis de ambiente.");
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
+
     const systemInstruction = `
       VOCÊ É UM ENGENHEIRO DE MANUTENÇÃO EXPERT DA TECNOLOC.
       ESPECIALIDADE ATUAL: Defeitos do tipo ${equipmentInfo.category.toUpperCase()}.
@@ -40,7 +52,6 @@ export const geminiService = {
       });
     }
 
-    // Call generateContent with specified model and config containing systemInstruction
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: { parts: contents },
@@ -53,21 +64,19 @@ export const geminiService = {
             possible_causes: { 
               type: Type.ARRAY, 
               items: { type: Type.STRING },
-              description: 'Lista de causas técnicas prováveis do defeito.'
+              description: 'Lista de causas técnicas prováveis.'
             },
             solutions: {
               type: Type.ARRAY,
               items: {
                 type: Type.OBJECT,
                 properties: {
-                  title: { type: Type.STRING, description: 'Título curto da solução.' },
-                  steps: { type: Type.ARRAY, items: { type: Type.STRING }, description: 'Passo a passo da execução.' },
-                  difficulty: { type: Type.STRING, description: 'Nível: Fácil, Média ou Difícil.' }
+                  title: { type: Type.STRING },
+                  steps: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  difficulty: { type: Type.STRING }
                 },
-                required: ["title", "steps", "difficulty"],
-                propertyOrdering: ["title", "steps", "difficulty"]
-              },
-              description: 'Sugestões de soluções técnicas detalhadas.'
+                required: ["title", "steps", "difficulty"]
+              }
             }
           },
           required: ["possible_causes", "solutions"]
@@ -75,8 +84,6 @@ export const geminiService = {
       }
     });
 
-    // Access the .text property directly instead of calling it as a method
-    const jsonStr = response.text || '{}';
-    return JSON.parse(jsonStr);
+    return JSON.parse(response.text || '{}');
   }
 };
