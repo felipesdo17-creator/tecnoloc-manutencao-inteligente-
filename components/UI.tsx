@@ -57,23 +57,39 @@ export const Button = ({ children, onClick, className = "", disabled = false, va
   );
 };
 
-export const Input = ({ className = "", ...props }: React.InputHTMLAttributes<HTMLInputElement>) => (
-  <input 
-    {...props} 
-    className={`w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all bg-white text-slate-900 ${className}`} 
-  />
-);
+export const Input = ({ className = "", ...props }: React.InputHTMLAttributes<HTMLInputElement>) => {
+  const hasBg = className.includes('bg-');
+  const hasText = className.includes('text-');
+  
+  return (
+    <input 
+      {...props} 
+      className={`w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all 
+        ${!hasBg ? 'bg-white' : ''} 
+        ${!hasText ? 'text-slate-900' : ''} 
+        ${className}`} 
+    />
+  );
+};
 
 export const Label = ({ children, className = "", ...props }: UIProps) => (
   <label className={`block text-sm font-bold text-slate-700 mb-1 ${className}`} {...props}>{children}</label>
 );
 
-export const Textarea = ({ className = "", ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => (
-  <textarea 
-    {...props} 
-    className={`w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all bg-white text-slate-900 ${className}`} 
-  />
-);
+export const Textarea = ({ className = "", ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => {
+  const hasBg = className.includes('bg-');
+  const hasText = className.includes('text-');
+
+  return (
+    <textarea 
+      {...props} 
+      className={`w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all 
+        ${!hasBg ? 'bg-white' : ''} 
+        ${!hasText ? 'text-slate-900' : ''} 
+        ${className}`} 
+    />
+  );
+};
 
 export const Badge = ({ children, className = "", ...props }: UIProps) => (
   <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${className}`} {...props}>

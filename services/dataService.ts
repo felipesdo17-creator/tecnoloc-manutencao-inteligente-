@@ -4,8 +4,12 @@ import { MaintenanceLog, Manual } from '../types.ts';
 
 const getCredential = (key: string): string | undefined => {
   try {
-    // Prioridade absoluta: Variáveis de ambiente (Vercel)
-    const envValue = (process.env as any)[key];
+    // Acesso seguro ao process.env para evitar erros de build em ambientes não-node
+    let envValue = undefined;
+    if (typeof process !== 'undefined' && process.env) {
+      envValue = (process.env as any)[key];
+    }
+    
     if (envValue && envValue !== '') return envValue;
     
     // Fallback: Local Storage (apenas se não houver no ambiente)
@@ -41,7 +45,6 @@ const getSupabase = (): SupabaseClient | null => {
 const isConfigured = () => {
   const url = getCredential('SUPABASE_URL');
   const key = getCredential('SUPABASE_ANON_KEY');
-  // Se as variáveis existem no processo ou no storage, o sistema está configurado
   return !!(url && key);
 };
 
@@ -68,8 +71,6 @@ export const dataService = {
   signOut: async () => {
     const sb = getSupabase();
     if (sb) await sb.auth.signOut();
-    // Não removemos as credenciais do localStorage aqui para evitar que o usuário 
-    // precise reconfigurar caso tenha optado por configuração manual persistente.
     window.location.href = '#/login';
   },
 
