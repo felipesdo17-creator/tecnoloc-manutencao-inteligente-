@@ -1,9 +1,10 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FileText, Search, History, ChevronRight, Zap, ClipboardCheck, LayoutDashboard, Settings, X, Database, Key } from 'lucide-react';
+import { FileText, Search, History, ChevronRight, Zap, ClipboardCheck, LayoutDashboard, LogOut, User as UserIcon } from 'lucide-react';
 import { dataService } from '../services/dataService';
-import { Button, Input, Label, Card, CardContent } from '../components/UI';
+import { Button } from '../components/UI';
+import { User } from '@supabase/supabase-js';
 
 const NavCard: React.FC<{
   to: string;
@@ -47,16 +48,16 @@ const NavCard: React.FC<{
 };
 
 export default function Home() {
-  const [showConfig, setShowConfig] = useState(!dataService.isConfigured());
-  const [config, setConfig] = useState({
-    url: localStorage.getItem('SUPABASE_URL') || '',
-    key: localStorage.getItem('SUPABASE_ANON_KEY') || '',
-    gemini: localStorage.getItem('API_KEY') || ''
-  });
+  const [user, setUser] = useState<User | null>(null);
 
-  const handleSaveConfig = () => {
-    if (!config.url || !config.key || !config.gemini) return alert("Preencha todos os campos.");
-    dataService.setCredentials(config.url, config.key, config.gemini);
+  useEffect(() => {
+    dataService.getCurrentUser().then(setUser);
+  }, []);
+
+  const handleLogout = () => {
+    if (confirm("Deseja realmente sair do sistema?")) {
+      dataService.signOut();
+    }
   };
 
   return (
@@ -68,12 +69,21 @@ export default function Home() {
                           repeating-linear-gradient(90deg, transparent, transparent 2px, #fff 2px, #fff 4px)`
       }}></div>
       
-      <div className="absolute top-6 right-6 z-50">
+      {/* User Bar */}
+      <div className="absolute top-6 right-6 z-50 flex items-center gap-3">
+        <div className="flex flex-col items-end mr-2">
+           <span className="text-white font-bold text-sm leading-none">{user?.email?.split('@')[0]}</span>
+           <span className="text-green-400 text-[10px] uppercase font-black tracking-widest mt-1">Conectado</span>
+        </div>
+        <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center border border-white/20 text-white">
+           <UserIcon className="w-5 h-5" />
+        </div>
         <button 
-          onClick={() => setShowConfig(true)}
-          className="p-3 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full border border-white/20 text-white transition-all shadow-xl"
+          onClick={handleLogout}
+          className="p-3 bg-red-500/20 hover:bg-red-500/40 backdrop-blur-md rounded-full border border-red-500/30 text-red-200 transition-all shadow-xl"
+          title="Sair"
         >
-          <Settings className="w-5 h-5" />
+          <LogOut className="w-5 h-5" />
         </button>
       </div>
 
@@ -97,12 +107,6 @@ export default function Home() {
               <Zap className="w-4 h-4 text-orange-400" />
               <span className="text-sm text-orange-100 font-medium">IA Integrada</span>
             </div>
-            {!dataService.isConfigured() && (
-              <div className="flex items-center gap-2 bg-red-500/20 backdrop-blur-sm px-4 py-2 rounded-full border border-red-400/30">
-                <Database className="w-4 h-4 text-red-400" />
-                <span className="text-sm text-red-100 font-medium">Configuração Pendente</span>
-              </div>
-            )}
           </div>
         </div>
 
@@ -114,50 +118,6 @@ export default function Home() {
           <NavCard to="/historico" title="Histórico" description="Acesse o registro completo de diagnósticos anteriores e soluções aplicadas pelos técnicos." icon={<History className="w-8 h-8 text-white" />} color="green" />
         </div>
       </div>
-
-      {showConfig && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md">
-          <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-200">
-            <div className="bg-slate-900 p-6 flex justify-between items-center text-white">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-500 rounded-lg"><Settings className="w-5 h-5" /></div>
-                <h2 className="text-xl font-bold">Configuração Geral</h2>
-              </div>
-              <button onClick={() => setShowConfig(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X className="w-5 h-5" /></button>
-            </div>
-            
-            <CardContent className="p-8 space-y-6">
-              <div className="space-y-4">
-                <div className="pb-2 border-b">
-                   <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2"><Database className="w-4 h-4" /> Supabase</h3>
-                </div>
-                <div className="space-y-2">
-                  <Label>Project URL (do seu print)</Label>
-                  <Input value={config.url} onChange={e => setConfig({...config, url: e.target.value})} placeholder="https://abcde123.supabase.co" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Publishable Key (do seu print)</Label>
-                  <Input type="password" value={config.key} onChange={e => setConfig({...config, key: e.target.value})} placeholder="sb_publishable-..." />
-                </div>
-
-                <div className="pt-4 pb-2 border-b">
-                   <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2"><Key className="w-4 h-4" /> Inteligência Artificial</h3>
-                </div>
-                <div className="space-y-2">
-                  <Label>Gemini API Key</Label>
-                  <Input type="password" value={config.gemini} onChange={e => setConfig({...config, gemini: e.target.value})} placeholder="Sua chave do Google Gemini" />
-                  <p className="text-[10px] text-slate-500">Obtenha em: <a href="https://aistudio.google.com/app/apikey" target="_blank" className="text-indigo-600 underline">AI Studio API Key</a></p>
-                </div>
-              </div>
-
-              <div className="pt-4 flex gap-3">
-                <Button variant="outline" className="flex-1" onClick={() => setShowConfig(false)}>Cancelar</Button>
-                <Button className="flex-1 h-12 bg-indigo-600 font-bold" onClick={handleSaveConfig}>Salvar e Reiniciar</Button>
-              </div>
-            </CardContent>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

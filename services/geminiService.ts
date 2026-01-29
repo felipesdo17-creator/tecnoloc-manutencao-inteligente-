@@ -2,14 +2,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { DiagnosticResult } from "../types";
 
-const getApiKey = (): string => {
-  try {
-    return (process.env as any).API_KEY || localStorage.getItem('API_KEY') || '';
-  } catch {
-    return '';
-  }
-};
-
 // Função auxiliar para esperar (delay)
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -21,14 +13,11 @@ export const geminiService = {
     imageBase64: string | null,
     retryCount = 0
   ): Promise<DiagnosticResult> => {
-    const apiKey = getApiKey();
-    if (!apiKey) {
-      throw new Error("Chave de API (Gemini) não configurada.");
-    }
+    // Fixed: Always use process.env.API_KEY directly in a named parameter and avoid manual key management.
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-    // Se falhar 2 vezes com Pro, tenta com Flash que tem limites muito maiores
+    // Use gemini-3-pro-preview for complex reasoning tasks.
     const modelName = retryCount > 1 ? 'gemini-3-flash-preview' : 'gemini-3-pro-preview';
-    const ai = new GoogleGenAI({ apiKey });
 
     const systemInstruction = `
       VOCÊ É UM ENGENHEIRO DE MANUTENÇÃO EXPERT DA TECNOLOC.
@@ -52,16 +41,16 @@ export const geminiService = {
     `;
 
     try {
-      const contents: any[] = [{ text: userPrompt }];
+      const parts: any[] = [{ text: userPrompt }];
       if (imageBase64) {
-        contents.push({
+        parts.push({
           inlineData: { mimeType: 'image/jpeg', data: imageBase64 }
         });
       }
 
       const response = await ai.models.generateContent({
         model: modelName,
-        contents: { parts: contents },
+        contents: { parts: parts },
         config: {
           systemInstruction: systemInstruction,
           responseMimeType: "application/json",
@@ -81,21 +70,23 @@ export const geminiService = {
                     steps: { type: Type.ARRAY, items: { type: Type.STRING } },
                     difficulty: { type: Type.STRING }
                   },
-                  required: ["title", "steps", "difficulty"]
+                  propertyOrdering: ["title", "steps", "difficulty"]
                 }
               }
             },
-            required: ["possible_causes", "solutions"]
+            propertyOrdering: ["possible_causes", "solutions"]
           }
         }
       });
 
-      return JSON.parse(response.text || '{}');
+      // Fixed: Access response.text property directly (not a method).
+      const text = response.text || '{}';
+      return JSON.parse(text.trim());
     } catch (error: any) {
-      // Se for erro de quota (429) e ainda não tentamos muito
+      // Handle quota limits (429) and other errors with retry logic.
       if ((error.message?.includes('429') || error.status === 429) && retryCount < 3) {
         console.warn(`[Gemini] Limite atingido. Tentativa ${retryCount + 1} de 3...`);
-        await sleep(2000 * (retryCount + 1)); // Espera aumentada (Backoff)
+        await sleep(2000 * (retryCount + 1));
         return geminiService.analyzeEquipment(equipmentInfo, manualContent, previousSolutions, imageBase64, retryCount + 1);
       }
       throw error;

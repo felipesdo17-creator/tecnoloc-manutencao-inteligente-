@@ -22,7 +22,7 @@ export const CardTitle = ({ children, className = "", ...props }: UIProps) => (
 );
 
 export const CardDescription = ({ children, className = "", ...props }: UIProps) => (
-  <p className={`text-sm text-slate-500 ${className}`} {...props}>{children}</p>
+  <p className={`text-sm text-slate-500 ${className}`} {...props}>{children}</h3>
 );
 
 export const CardContent = ({ children, className = "", ...props }: UIProps) => (
@@ -57,10 +57,10 @@ export const Button = ({ children, onClick, className = "", disabled = false, va
   );
 };
 
-export const Input = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
+export const Input = ({ className = "", ...props }: React.InputHTMLAttributes<HTMLInputElement>) => (
   <input 
     {...props} 
-    className={`w-full px-4 py-2 bg-white text-slate-900 placeholder:text-slate-400 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all ${props.className || ''}`} 
+    className={`w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all bg-white text-slate-900 ${className}`} 
   />
 );
 
@@ -68,10 +68,10 @@ export const Label = ({ children, className = "", ...props }: UIProps) => (
   <label className={`block text-sm font-bold text-slate-700 mb-1 ${className}`} {...props}>{children}</label>
 );
 
-export const Textarea = (props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => (
+export const Textarea = ({ className = "", ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => (
   <textarea 
     {...props} 
-    className={`w-full px-4 py-2 bg-white text-slate-900 placeholder:text-slate-400 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all ${props.className || ''}`} 
+    className={`w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all bg-white text-slate-900 ${className}`} 
   />
 );
 

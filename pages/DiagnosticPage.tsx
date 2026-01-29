@@ -286,7 +286,7 @@ export default function DiagnosticPage() {
                     <div>
                       <Label className="text-slate-400">Técnico Responsável *</Label>
                       <Input 
-                        className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-600 focus:ring-indigo-500" 
+                        className="bg-slate-800 border-slate-700 text-white !placeholder-slate-500 focus:ring-indigo-500" 
                         placeholder="Nome completo" 
                         value={technicianName} 
                         onChange={e => setTechnicianName(e.target.value)} 
@@ -296,7 +296,7 @@ export default function DiagnosticPage() {
                       <div className="animate-in fade-in slide-in-from-left-2">
                         <Label className="text-indigo-400 font-bold">O que foi feito? *</Label>
                         <Input 
-                          className="bg-slate-800 border-indigo-900 text-white placeholder:text-slate-600" 
+                          className="bg-slate-800 border-indigo-900 text-white !placeholder-slate-400" 
                           placeholder="Descreva a solução alternativa" 
                           value={actualSolution} 
                           onChange={e => setActualSolution(e.target.value)} 
@@ -308,7 +308,7 @@ export default function DiagnosticPage() {
                   <div>
                     <Label className="text-slate-400">Observações Finais / Peças Substituídas</Label>
                     <Textarea 
-                      className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-600" 
+                      className="bg-slate-800 border-slate-700 text-white !placeholder-slate-500" 
                       placeholder="Ex: Trocado sensor de óleo, nível estava normal..." 
                       value={attachmentNotes} 
                       onChange={e => setAttachmentNotes(e.target.value)} 
