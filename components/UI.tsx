@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { Loader2 } from 'lucide-react';
 
 // Common interface for components that can accept children and extra props (like key)
 interface UIProps {
@@ -111,3 +112,12 @@ export const Select = ({ value, onValueChange, children, ...props }: any) => {
     </div>
   );
 };
+
+export const LoadingOverlay = () => (
+  <div className="fixed inset-0 z-[999] bg-slate-50/80 backdrop-blur-sm flex items-center justify-center">
+    <div className="text-center">
+      <Loader2 className="w-12 h-12 animate-spin text-indigo-600 mx-auto mb-4" />
+      <p className="text-slate-500 font-black text-sm uppercase tracking-widest">Carregando Módulo...</p>
+    </div>
+  </div>
+);
