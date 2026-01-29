@@ -21,7 +21,7 @@ export const CardTitle = ({ children, className = "", ...props }: UIProps) => (
 );
 
 export const CardDescription = ({ children, className = "", ...props }: UIProps) => (
-  <p className={`text-sm text-slate-500 ${className}`} {...props}>{children}</h3>
+  <p className={`text-sm text-slate-500 ${className}`} {...props}>{children}</p>
 );
 
 export const CardContent = ({ children, className = "", ...props }: UIProps) => (

@@ -69,8 +69,15 @@ export default function DiagnosticPage() {
         });
       }
 
+      // Fixed: Mapped formData keys to match the expected parameter type in geminiService.analyzeEquipment
       const result = await geminiService.analyzeEquipment(
-        { ...formData, category: formData.defect_category },
+        { 
+          name: formData.equipment_name, 
+          brand: formData.brand, 
+          model: formData.model, 
+          defect: formData.defect_description, 
+          category: formData.defect_category 
+        },
         manual?.description || null,
         fieldTips || null,
         base64Image
