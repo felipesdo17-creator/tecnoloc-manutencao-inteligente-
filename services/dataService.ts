@@ -2,18 +2,24 @@
 import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
 import { MaintenanceLog, Manual } from '../types';
 
-// Função auxiliar para obter credenciais de forma segura
+// Função auxiliar para obter credenciais do Supabase
 const getCredential = (key: string): string | undefined => {
   try {
     const viteKey = `VITE_${key}`;
     
-    // 1. Tentar import.meta.env (Vite)
+    // 1. Tentar import.meta.env (Padrão Vite)
     if (typeof import.meta !== 'undefined' && (import.meta as any).env) {
       const val = (import.meta as any).env[viteKey] || (import.meta as any).env[key];
       if (val) return val;
     }
 
-    // 2. Fallback para localStorage
+    // 2. Fallback para process.env caso o ambiente injete diretamente
+    if (typeof process !== 'undefined' && process.env) {
+      const val = process.env[viteKey] || process.env[key];
+      if (val) return val;
+    }
+
+    // 3. Fallback para localStorage (Configuração manual se necessário)
     const localValue = localStorage.getItem(key);
     if (localValue && localValue !== '') return localValue;
   } catch (e) {
@@ -31,7 +37,6 @@ const getSupabase = (): SupabaseClient | null => {
   const key = getCredential('SUPABASE_ANON_KEY');
   
   if (!url || !url.startsWith('https://') || !key) {
-    console.warn("Supabase não configurado corretamente. Verifique as variáveis VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY.");
     return null;
   }
 
@@ -39,7 +44,6 @@ const getSupabase = (): SupabaseClient | null => {
     supabaseInstance = createClient(url, key);
     return supabaseInstance;
   } catch (error) {
-    console.error("Erro ao inicializar cliente Supabase:", error);
     return null;
   }
 };
@@ -47,14 +51,6 @@ const getSupabase = (): SupabaseClient | null => {
 export const dataService = {
   isConfigured: () => !!getSupabase(),
 
-  isConfiguredViaEnv: () => {
-    const url = getCredential('SUPABASE_URL');
-    const key = getCredential('SUPABASE_ANON_KEY');
-    // Verifica se as chaves existem no ambiente e não apenas no localStorage
-    const hasInEnv = (import.meta as any).env?.VITE_SUPABASE_URL || (import.meta as any).env?.VITE_SUPABASE_ANON_KEY;
-    return !!hasInEnv;
-  },
-  
   signIn: async (email: string, pass: string) => {
     const sb = getSupabase();
     if (!sb) throw new Error("Configuração do banco de dados ausente.");

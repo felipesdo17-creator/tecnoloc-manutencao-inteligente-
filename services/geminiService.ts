@@ -12,12 +12,18 @@ export const geminiService = {
     imageBase64: string | null,
     retryCount = 0
   ): Promise<DiagnosticResult> => {
-    // Usando import.meta.env conforme solicitado
-    const apiKey = (import.meta as any).env.VITE_GEMINI_API_KEY || (import.meta as any).env.API_KEY;
+    // A chave deve ser obtida exclusivamente de process.env.API_KEY conforme diretrizes do SDK
+    const apiKey = process.env.API_KEY;
+    
+    if (!apiKey) {
+      throw new Error("A chave de API do Gemini não foi configurada no ambiente (process.env.API_KEY).");
+    }
+
     const ai = new GoogleGenAI({ apiKey });
 
-    // Atualizado para os modelos 1.5 conforme solicitado pelo usuário
-    const modelName = retryCount > 1 ? 'gemini-1.5-flash' : 'gemini-1.5-pro';
+    // Modelos atualizados conforme diretrizes (Série Gemini 3)
+    // Usamos o Pro para a primeira tentativa (maior raciocínio) e Flash se precisar de retry rápido
+    const modelName = retryCount > 0 ? 'gemini-3-flash-preview' : 'gemini-3-pro-preview';
 
     const systemInstruction = `
       VOCÊ É UM ENGENHEIRO DE MANUTENÇÃO EXPERT DA TECNOLOC.
@@ -82,8 +88,9 @@ export const geminiService = {
       const text = response.text || '{}';
       return JSON.parse(text.trim());
     } catch (error: any) {
+      // Tratamento de erro 429 (Rate Limit) com Exponential Backoff
       if ((error.message?.includes('429') || error.status === 429) && retryCount < 3) {
-        console.warn(`[Gemini] Limite atingido. Tentativa ${retryCount + 1} de 3...`);
+        console.warn(`[Gemini] Limite de cota atingido. Tentando novamente em breve...`);
         await sleep(2000 * (retryCount + 1));
         return geminiService.analyzeEquipment(equipmentInfo, manualContent, previousSolutions, imageBase64, retryCount + 1);
       }
