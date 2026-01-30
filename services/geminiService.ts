@@ -1,8 +1,17 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 import { DiagnosticResult } from "../types";
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// No Vite, variáveis de ambiente DEVEM começar com VITE_ para serem lidas no browser
+const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+
+if (!API_KEY) {
+  console.error("ERRO: VITE_GEMINI_API_KEY não encontrada no ambiente.");
+}
+
+const genAI = new GoogleGenerativeAI(API_KEY || "");
 
 export const geminiService = {
   analyzeEquipment: async (
@@ -12,85 +21,85 @@ export const geminiService = {
     imageBase64: string | null,
     retryCount = 0
   ): Promise<DiagnosticResult> => {
-    // A chave deve ser obtida exclusivamente de process.env.API_KEY conforme diretrizes do SDK
-    const apiKey = process.env.API_KEY;
     
-    if (!apiKey) {
-      throw new Error("A chave de API do Gemini não foi configurada no ambiente (process.env.API_KEY).");
+    if (!API_KEY) {
+      throw new Error("A chave de API não foi configurada. Verifique as Environment Variables na Vercel.");
     }
 
-    const ai = new GoogleGenAI({ apiKey });
+    // Modelos estáveis e recomendados para produção: 1.5 Pro e 1.5 Flash
+    const modelName = retryCount > 0 ? 'gemini-1.5-flash' : 'gemini-1.5-pro';
+    
+    // Definição do Schema para garantir que o JSON venha no formato certo
+    const schema = {
+      type: SchemaType.OBJECT,
+      properties: {
+        possible_causes: {
+          type: SchemaType.ARRAY,
+          items: { type: SchemaType.STRING },
+          description: "Lista de causas prováveis do defeito"
+        },
+        solutions: {
+          type: SchemaType.ARRAY,
+          items: {
+            type: SchemaType.OBJECT,
+            properties: {
+              title: { type: SchemaType.STRING },
+              steps: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+              difficulty: { type: SchemaType.STRING, enum: ["Fácil", "Média", "Difícil"] }
+            },
+            required: ["title", "steps", "difficulty"]
+          }
+        }
+      },
+      required: ["possible_causes", "solutions"]
+    };
 
-    // Modelos atualizados conforme diretrizes (Série Gemini 3)
-    // Usamos o Pro para a primeira tentativa (maior raciocínio) e Flash se precisar de retry rápido
-    const modelName = retryCount > 0 ? 'gemini-3-flash-preview' : 'gemini-3-pro-preview';
+    const model = genAI.getGenerativeModel({
+      model: modelName,
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: schema,
+      },
+    });
 
     const systemInstruction = `
       VOCÊ É UM ENGENHEIRO DE MANUTENÇÃO EXPERT DA TECNOLOC.
-      ESPECIALIDADE ATUAL: Defeitos do tipo ${equipmentInfo.category.toUpperCase()}.
+      ESPECIALIDADE: Defeitos do tipo ${equipmentInfo.category.toUpperCase()}.
       
-      TAREFA:
-      Forneça um diagnóstico técnico focado em falhas ${equipmentInfo.category}. 
-      Utilize tanto o manual quanto a "experiência de campo" fornecida para sugerir soluções que realmente funcionam no dia a dia.
-      Retorne obrigatoriamente um objeto JSON válido.
+      TAREFA: Forneça um diagnóstico técnico focado em falhas ${equipmentInfo.category}. 
+      Utilize o manual e a experiência de campo fornecida para sugerir soluções práticas.
     `;
 
     const userPrompt = `
       EQUIPAMENTO: ${equipmentInfo.name} (${equipmentInfo.brand} ${equipmentInfo.model})
       RELATO DO DEFEITO: "${equipmentInfo.defect}"
       
-      BASE DE CONHECIMENTO (MANUAL):
-      ${manualContent || "Não disponível."}
-      
-      EXPERIÊNCIA DE CAMPO (CASOS ANTERIORES):
-      ${previousSolutions || "Sem registros anteriores para este caso."}
+      MANUAL: ${manualContent || "Não disponível."}
+      EXPERIÊNCIA ANTERIOR: ${previousSolutions || "Sem registros."}
     `;
 
     try {
-      const parts: any[] = [{ text: userPrompt }];
+      const promptParts: any[] = [userPrompt];
+      
       if (imageBase64) {
-        parts.push({
+        promptParts.push({
           inlineData: { mimeType: 'image/jpeg', data: imageBase64 }
         });
       }
 
-      const response = await ai.models.generateContent({
-        model: modelName,
-        contents: { parts: parts },
-        config: {
-          systemInstruction: systemInstruction,
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              possible_causes: { 
-                type: Type.ARRAY, 
-                items: { type: Type.STRING }
-              },
-              solutions: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    title: { type: Type.STRING },
-                    steps: { type: Type.ARRAY, items: { type: Type.STRING } },
-                    difficulty: { type: Type.STRING }
-                  },
-                  propertyOrdering: ["title", "steps", "difficulty"]
-                }
-              }
-            },
-            propertyOrdering: ["possible_causes", "solutions"]
-          }
-        }
+      // O SDK oficial usa generateContent e o método text() é uma função assíncrona
+      const result = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: systemInstruction + "\n\n" + userPrompt }] }]
       });
-
-      const text = response.text || '{}';
-      return JSON.parse(text.trim());
+      
+      const response = await result.response;
+      const text = response.text();
+      
+      return JSON.parse(text);
     } catch (error: any) {
-      // Tratamento de erro 429 (Rate Limit) com Exponential Backoff
+      // Retry para erro 429 (Limite de cota)
       if ((error.message?.includes('429') || error.status === 429) && retryCount < 3) {
-        console.warn(`[Gemini] Limite de cota atingido. Tentando novamente em breve...`);
+        console.warn(`[Gemini] Limite atingido. Tentando novamente...`);
         await sleep(2000 * (retryCount + 1));
         return geminiService.analyzeEquipment(equipmentInfo, manualContent, previousSolutions, imageBase64, retryCount + 1);
       }
