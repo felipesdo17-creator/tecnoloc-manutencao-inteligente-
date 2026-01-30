@@ -2,7 +2,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { DiagnosticResult } from "../types";
 
-// Função auxiliar para esperar (delay)
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export const geminiService = {
@@ -13,10 +12,12 @@ export const geminiService = {
     imageBase64: string | null,
     retryCount = 0
   ): Promise<DiagnosticResult> => {
-    // Fixed: Always use process.env.API_KEY directly in a named parameter and avoid manual key management.
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    // Usando import.meta.env conforme solicitado para ambiente Vite
+    const apiKey = (import.meta as any).env.VITE_GEMINI_API_KEY || (import.meta as any).env.API_KEY || (process as any).env.API_KEY;
+    const ai = new GoogleGenAI({ apiKey });
 
-    // Use gemini-3-pro-preview for complex reasoning tasks.
+    // Mantendo os modelos de última geração conforme as diretrizes obrigatórias do sistema
+    // gemini-3-pro-preview e gemini-3-flash-preview são os nomes oficiais suportados nesta SDK
     const modelName = retryCount > 1 ? 'gemini-3-flash-preview' : 'gemini-3-pro-preview';
 
     const systemInstruction = `
@@ -79,11 +80,9 @@ export const geminiService = {
         }
       });
 
-      // Fixed: Access response.text property directly (not a method).
       const text = response.text || '{}';
       return JSON.parse(text.trim());
     } catch (error: any) {
-      // Handle quota limits (429) and other errors with retry logic.
       if ((error.message?.includes('429') || error.status === 429) && retryCount < 3) {
         console.warn(`[Gemini] Limite atingido. Tentativa ${retryCount + 1} de 3...`);
         await sleep(2000 * (retryCount + 1));

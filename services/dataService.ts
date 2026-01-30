@@ -12,13 +12,7 @@ const getCredential = (key: string): string | undefined => {
       if (val) return val;
     }
 
-    // 2. Tentar process.env (Node/Vercel)
-    if (typeof process !== 'undefined' && process.env) {
-      const val = (process.env as any)[viteKey] || (process.env as any)[key];
-      if (val) return val;
-    }
-    
-    // 3. Fallback para localStorage (Manual)
+    // 2. Fallback para localStorage (Manual)
     const localValue = localStorage.getItem(key);
     if (localValue && localValue !== '') return localValue;
   } catch (e) {
