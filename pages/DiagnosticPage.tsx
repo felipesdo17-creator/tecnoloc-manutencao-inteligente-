@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -25,7 +26,6 @@ export default function DiagnosticPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
-  // Inicializamos com null para o guard de renderização
   const [diagnosisResult, setDiagnosisResult] = useState<DiagnosticResult | null>(null);
   const [errorStatus, setErrorStatus] = useState<string | null>(null);
   
@@ -70,6 +70,7 @@ export default function DiagnosticPage() {
         });
       }
 
+      // Chama o serviço que agora possui higienização automática de JSON
       const result = await aiService.analyzeEquipment(
         { 
           name: formData.equipment_name, 
@@ -83,18 +84,14 @@ export default function DiagnosticPage() {
         base64Image
       );
 
-      // Validação extra: Garante que o objeto tenha as listas necessárias
-      if (result && (result.possible_causes || result.solutions)) {
-        setDiagnosisResult(result);
-        toast.success('Diagnóstico concluído!');
-      } else {
-        throw new Error("A IA retornou um formato de dados inesperado.");
-      }
+      // O aiService já garante que result.possible_causes e result.solutions existam
+      setDiagnosisResult(result);
+      toast.success('Diagnóstico técnico finalizado!');
 
     } catch (error: any) {
       console.error(error);
-      setErrorStatus(error.message || "Erro na análise técnica.");
-      toast.error("Erro na comunicação com o Groq.");
+      setErrorStatus(error.message || "Falha na análise técnica.");
+      toast.error("Erro no processamento da IA.");
     } finally { 
       setIsAnalyzing(false); 
     }
@@ -116,27 +113,26 @@ export default function DiagnosticPage() {
         technician_notes: actualSolution,
         attachment_notes: attachmentNotes
       });
-      toast.success("Registro salvo no histórico!");
+      toast.success("Histórico atualizado!");
       navigate('/historico');
     } catch (error) { 
-      toast.error("Erro ao salvar no banco de dados."); 
+      toast.error("Erro ao sincronizar com a nuvem."); 
     } finally { 
       setIsSaving(false); 
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 md:p-8">
+    <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans">
       <div className="max-w-4xl mx-auto">
         <Button variant="ghost" onClick={() => navigate('/')} className="mb-6 group">
-          <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" /> Voltar
+          <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" /> Painel Principal
         </Button>
 
-        {/* Formulário de Entrada */}
         <Card className="border-t-4 border-t-indigo-600 shadow-xl mb-8">
           <CardHeader className="bg-slate-50/50">
             <h2 className="flex items-center gap-3 text-indigo-900 text-xl font-black uppercase tracking-tight">
-              <ShieldCheck className="h-6 w-6 text-indigo-600" /> Diagnóstico Tecnoloc (Groq Llama)
+              <ShieldCheck className="h-6 w-6 text-indigo-600" /> Diagnóstico Avançado (Groq AI)
             </h2>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -156,54 +152,60 @@ export default function DiagnosticPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Relato do Defeito</Label>
+              <Label>Descrição da Ocorrência</Label>
               <div className="relative">
-                <Textarea value={formData.defect_description} onChange={e => setFormData({...formData, defect_description: e.target.value})} placeholder="Descreva os sintomas..." className="min-h-[100px] pr-12" />
-                <button onClick={() => fileInputRef.current?.click()} className="absolute bottom-3 right-3 p-2 bg-indigo-50 rounded-lg text-indigo-600"><Camera className="w-5 h-5" /></button>
+                <Textarea value={formData.defect_description} onChange={e => setFormData({...formData, defect_description: e.target.value})} placeholder="Descreva os sintomas apresentados pelo equipamento..." className="min-h-[100px] pr-12" />
+                <button onClick={() => fileInputRef.current?.click()} className="absolute bottom-3 right-3 p-2 bg-indigo-50 rounded-lg text-indigo-600 hover:bg-indigo-100 transition-colors"><Camera className="w-5 h-5" /></button>
                 <input type="file" ref={fileInputRef} onChange={handleImageSelect} className="hidden" accept="image/*" />
               </div>
-              {imagePreview && <div className="mt-2 relative inline-block"><img src={imagePreview} className="h-24 rounded-lg border-2 border-white shadow-md" /><button onClick={() => {setSelectedImage(null); setImagePreview(null);}} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1"><X className="w-3 h-3" /></button></div>}
+              {imagePreview && (
+                <div className="mt-2 relative inline-block animate-in zoom-in-95">
+                  <img src={imagePreview} className="h-24 rounded-lg border-2 border-white shadow-md" />
+                  <button onClick={() => {setSelectedImage(null); setImagePreview(null);}} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-lg hover:bg-red-600 transition-transform active:scale-90">
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
             </div>
 
             {errorStatus && (
-              <div className="p-4 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3"><AlertCircle className="w-5 h-5 text-red-500 mt-0.5" /><p className="text-sm text-red-700 font-medium">{errorStatus}</p></div>
+              <div className="p-4 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3 animate-in slide-in-from-top-2">
+                <AlertCircle className="w-5 h-5 text-red-500 mt-0.5" />
+                <p className="text-sm text-red-700 font-medium">{errorStatus}</p>
+              </div>
             )}
 
-            <Button onClick={handleAnalyze} disabled={isAnalyzing} className="w-full h-14 font-black uppercase tracking-wider text-lg bg-indigo-600 shadow-xl">
-              {isAnalyzing ? <><Loader2 className="animate-spin mr-2" /> Analisando com Groq...</> : <><Zap className="mr-2 w-5 h-5 fill-current" /> Iniciar Análise</>}
+            <Button onClick={handleAnalyze} disabled={isAnalyzing} className="w-full h-14 font-black uppercase tracking-wider text-lg bg-indigo-600 shadow-indigo-200 shadow-xl">
+              {isAnalyzing ? <><Loader2 className="animate-spin mr-2" /> Analisando Dados...</> : <><Zap className="mr-2 w-5 h-5 fill-current" /> Iniciar Diagnóstico Técnico</>}
             </Button>
           </CardContent>
         </Card>
 
-        {/* ÁREA DE RESULTADOS (CORRIGIDA COM OPTIONAL CHAINING) */}
         {diagnosisResult && (
           <div className="animate-in slide-in-from-bottom-4 duration-500 space-y-8 pb-24">
-            <Card className="border-l-[12px] border-l-green-600 shadow-xl relative">
+            <Card className="border-l-[12px] border-l-green-600 shadow-xl relative overflow-visible">
               <div className="absolute -left-3 top-8 w-6 h-6 bg-green-600 rounded-full flex items-center justify-center text-white shadow-lg"><CheckCircle className="w-4 h-4" /></div>
-              <CardHeader className="bg-green-50/50 pl-10"><h3 className="text-green-800 font-black uppercase text-sm tracking-widest">Diagnóstico Gerado</h3></CardHeader>
+              <CardHeader className="bg-green-50/50 pl-10"><h3 className="text-green-800 font-black uppercase text-sm tracking-widest">Resultado da Análise IA</h3></CardHeader>
               <div className="p-6 space-y-8 pl-10">
                 <div>
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2"><AlertCircle className="w-3 h-3" /> Possíveis Causas</h4>
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2"><AlertCircle className="w-3 h-3" /> Causas Prováveis</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {/* CORREÇÃO: Uso de ?. para evitar erro se a lista estiver vazia ou undefined */}
-                    {diagnosisResult?.possible_causes?.map((c, i) => (
+                    {diagnosisResult.possible_causes.map((c, i) => (
                       <div key={i} className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-sm text-slate-700 font-bold flex gap-3"><span className="text-indigo-400">•</span> {c}</div>
                     ))}
                   </div>
                 </div>
                 <div>
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2"><Wrench className="w-3 h-3" /> Soluções Recomendadas</h4>
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2"><Wrench className="w-3 h-3" /> Plano de Ação Sugerido</h4>
                   <div className="space-y-4">
-                    {/* CORREÇÃO: Uso de ?.map para segurança total */}
-                    {diagnosisResult?.solutions?.map((s, i) => (
-                      <div key={i} className="p-6 border border-indigo-50 rounded-2xl bg-white shadow-sm">
+                    {diagnosisResult.solutions.map((s, i) => (
+                      <div key={i} className="p-6 border border-indigo-50 rounded-2xl bg-white shadow-sm hover:shadow-md transition-shadow">
                         <div className="flex justify-between items-center mb-4">
                           <h5 className="font-black text-slate-900 text-lg">{s.title}</h5>
                           <Badge className={`${s.difficulty === 'Fácil' ? 'bg-green-100 text-green-700' : s.difficulty === 'Média' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'} border-transparent px-3 py-1`}>{s.difficulty}</Badge>
                         </div>
                         <div className="space-y-3">
-                          {/* CORREÇÃO: Uso de ?.map nos sub-itens (steps) */}
-                          {s?.steps?.map((step, si) => (
+                          {s.steps.map((step, si) => (
                             <div key={si} className="text-sm text-slate-600 flex gap-4 items-start"><span className="flex items-center justify-center w-6 h-6 rounded-full bg-indigo-50 text-indigo-600 font-black text-[10px] shrink-0">{si+1}</span><p className="pt-0.5 leading-relaxed font-medium">{step}</p></div>
                           ))}
                         </div>
@@ -214,12 +216,11 @@ export default function DiagnosticPage() {
               </div>
             </Card>
 
-            {/* Registro de Atendimento */}
-            <Card className="bg-slate-900 border-none shadow-2xl">
-              <CardHeader className="border-b border-slate-800"><div className="flex items-center gap-2 text-white font-black uppercase tracking-widest text-xs"><Send className="w-5 h-5 text-indigo-400" /> Registro de Atendimento</div></CardHeader>
+            <Card className="bg-slate-900 border-none shadow-2xl overflow-hidden">
+              <CardHeader className="border-b border-slate-800 bg-slate-800/50"><div className="flex items-center gap-2 text-white font-black uppercase tracking-widest text-xs"><Send className="w-5 h-5 text-indigo-400" /> Validar Solução em Campo</div></CardHeader>
               <CardContent className="space-y-6 pt-6">
                 <div className="grid grid-cols-1 gap-3">
-                  {[{ id: 'salvar_depois', title: 'Pendente', desc: 'Registrar visita sem resolução.' }, { id: 'conforme_manual', title: 'Resolvido (IA/Manual)', desc: 'Soluções aplicadas com sucesso.' }, { id: 'forma_diferente', title: 'Resolvido (Alternativo)', desc: 'Utilizada solução extra-manual.' }].map((opt) => (
+                  {[{ id: 'salvar_depois', title: 'Apenas Registrar', desc: 'Registrar ocorrência sem resolução imediata.' }, { id: 'conforme_manual', title: 'Resolvido (Seguindo IA)', desc: 'As orientações acima solucionaram o problema.' }, { id: 'forma_diferente', title: 'Resolvido (Método Alternativo)', desc: 'Solucionado através de outro procedimento.' }].map((opt) => (
                     <div key={opt.id} onClick={() => setResolutionType(opt.id as any)} className={`flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${resolutionType === opt.id ? 'bg-indigo-600 border-indigo-400' : 'bg-slate-800 border-slate-700 hover:border-slate-600'}`}>
                       <div className={`mt-1 w-5 h-5 rounded-full border-2 flex items-center justify-center ${resolutionType === opt.id ? 'border-white bg-white' : 'border-slate-500'}`}>{resolutionType === opt.id && <div className="w-2 h-2 rounded-full bg-indigo-600" />}</div>
                       <div><p className={`font-bold ${resolutionType === opt.id ? 'text-white' : 'text-slate-300'}`}>{opt.title}</p><p className={`text-xs ${resolutionType === opt.id ? 'text-indigo-100' : 'text-slate-500'}`}>{opt.desc}</p></div>
@@ -228,12 +229,12 @@ export default function DiagnosticPage() {
                 </div>
                 <div className="space-y-4 pt-4">
                   <div className="grid md:grid-cols-2 gap-4">
-                    <div><Label className="text-slate-400">Técnico Responsável *</Label><Input className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500" placeholder="Seu nome" value={technicianName} onChange={e => setTechnicianName(e.target.value)} /></div>
-                    {resolutionType === 'forma_diferente' && (<div className="animate-in fade-in slide-in-from-left-2"><Label className="text-indigo-400 font-bold">Resumo da Solução *</Label><Input className="bg-slate-800 border-indigo-900 text-white placeholder:text-slate-400" placeholder="O que resolveu?" value={actualSolution} onChange={e => setActualSolution(e.target.value)} /></div>)}
+                    <div><Label className="text-slate-400">Técnico Executor *</Label><Input className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 focus:ring-indigo-500" placeholder="Seu nome completo" value={technicianName} onChange={e => setTechnicianName(e.target.value)} /></div>
+                    {resolutionType === 'forma_diferente' && (<div className="animate-in fade-in slide-in-from-left-2"><Label className="text-indigo-400 font-bold">O que foi realizado? *</Label><Input className="bg-slate-800 border-indigo-900 text-white placeholder:text-slate-400" placeholder="Descreva sua solução" value={actualSolution} onChange={e => setActualSolution(e.target.value)} /></div>)}
                   </div>
-                  <div><Label className="text-slate-400">Notas / Peças Utilizadas</Label><Textarea className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500" placeholder="Ex: Trocado filtro..." value={attachmentNotes} onChange={e => setAttachmentNotes(e.target.value)} /></div>
-                  <Button onClick={handleSaveFeedback} disabled={isSaving} className="w-full h-14 bg-indigo-600 hover:bg-indigo-500 font-black uppercase text-lg rounded-xl">
-                    {isSaving ? <Loader2 className="animate-spin" /> : 'Finalizar e Enviar para Nuvem'}
+                  <div><Label className="text-slate-400">Notas de Campo / Peças Trocadas</Label><Textarea className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 focus:ring-indigo-500" placeholder="Ex: Trocado relé de partida, fiação estava oxidada..." value={attachmentNotes} onChange={e => setAttachmentNotes(e.target.value)} /></div>
+                  <Button onClick={handleSaveFeedback} disabled={isSaving} className="w-full h-14 bg-indigo-600 hover:bg-indigo-500 font-black uppercase text-lg rounded-xl shadow-lg transition-transform active:scale-[0.98]">
+                    {isSaving ? <><Loader2 className="animate-spin mr-2" /> Sincronizando...</> : 'Enviar para Nuvem Tecnoloc'}
                   </Button>
                 </div>
               </CardContent>

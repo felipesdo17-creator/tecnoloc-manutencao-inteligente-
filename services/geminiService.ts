@@ -1,4 +1,8 @@
 
 import { aiService } from "./aiService";
-// Redireciona chamadas antigas para o novo serviço de alta performance
+
+/**
+ * @deprecated Use aiService diretamente. 
+ * Mantido apenas para compatibilidade de exportação se houver imports legados.
+ */
 export const geminiService = aiService;
