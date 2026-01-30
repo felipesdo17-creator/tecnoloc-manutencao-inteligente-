@@ -70,7 +70,6 @@ export default function DiagnosticPage() {
         });
       }
 
-      // Chama o serviço que agora possui higienização automática de JSON
       const result = await aiService.analyzeEquipment(
         { 
           name: formData.equipment_name, 
@@ -84,14 +83,13 @@ export default function DiagnosticPage() {
         base64Image
       );
 
-      // O aiService já garante que result.possible_causes e result.solutions existam
       setDiagnosisResult(result);
-      toast.success('Diagnóstico técnico finalizado!');
+      toast.success('Análise técnica concluída!');
 
     } catch (error: any) {
       console.error(error);
-      setErrorStatus(error.message || "Falha na análise técnica.");
-      toast.error("Erro no processamento da IA.");
+      setErrorStatus(error.message || "Erro na análise.");
+      toast.error("Falha na IA.");
     } finally { 
       setIsAnalyzing(false); 
     }
@@ -113,10 +111,10 @@ export default function DiagnosticPage() {
         technician_notes: actualSolution,
         attachment_notes: attachmentNotes
       });
-      toast.success("Histórico atualizado!");
+      toast.success("Histórico salvo!");
       navigate('/historico');
     } catch (error) { 
-      toast.error("Erro ao sincronizar com a nuvem."); 
+      toast.error("Erro ao salvar."); 
     } finally { 
       setIsSaving(false); 
     }
@@ -126,13 +124,13 @@ export default function DiagnosticPage() {
     <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans">
       <div className="max-w-4xl mx-auto">
         <Button variant="ghost" onClick={() => navigate('/')} className="mb-6 group">
-          <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" /> Painel Principal
+          <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" /> Menu Tecnoloc
         </Button>
 
         <Card className="border-t-4 border-t-indigo-600 shadow-xl mb-8">
           <CardHeader className="bg-slate-50/50">
             <h2 className="flex items-center gap-3 text-indigo-900 text-xl font-black uppercase tracking-tight">
-              <ShieldCheck className="h-6 w-6 text-indigo-600" /> Diagnóstico Avançado (Groq AI)
+              <ShieldCheck className="h-6 w-6 text-indigo-600" /> Diagnóstico Avançado IA
             </h2>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -152,9 +150,9 @@ export default function DiagnosticPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Descrição da Ocorrência</Label>
+              <Label>Relato Técnico</Label>
               <div className="relative">
-                <Textarea value={formData.defect_description} onChange={e => setFormData({...formData, defect_description: e.target.value})} placeholder="Descreva os sintomas apresentados pelo equipamento..." className="min-h-[100px] pr-12" />
+                <Textarea value={formData.defect_description} onChange={e => setFormData({...formData, defect_description: e.target.value})} placeholder="Descreva o sintoma ou erro..." className="min-h-[100px] pr-12" />
                 <button onClick={() => fileInputRef.current?.click()} className="absolute bottom-3 right-3 p-2 bg-indigo-50 rounded-lg text-indigo-600 hover:bg-indigo-100 transition-colors"><Camera className="w-5 h-5" /></button>
                 <input type="file" ref={fileInputRef} onChange={handleImageSelect} className="hidden" accept="image/*" />
               </div>
@@ -169,14 +167,14 @@ export default function DiagnosticPage() {
             </div>
 
             {errorStatus && (
-              <div className="p-4 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3 animate-in slide-in-from-top-2">
+              <div className="p-4 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3">
                 <AlertCircle className="w-5 h-5 text-red-500 mt-0.5" />
                 <p className="text-sm text-red-700 font-medium">{errorStatus}</p>
               </div>
             )}
 
-            <Button onClick={handleAnalyze} disabled={isAnalyzing} className="w-full h-14 font-black uppercase tracking-wider text-lg bg-indigo-600 shadow-indigo-200 shadow-xl">
-              {isAnalyzing ? <><Loader2 className="animate-spin mr-2" /> Analisando Dados...</> : <><Zap className="mr-2 w-5 h-5 fill-current" /> Iniciar Diagnóstico Técnico</>}
+            <Button onClick={handleAnalyze} disabled={isAnalyzing} className="w-full h-14 font-black uppercase text-lg bg-indigo-600 shadow-xl">
+              {isAnalyzing ? <><Loader2 className="animate-spin mr-2" /> Analisando...</> : <><Zap className="mr-2 w-5 h-5 fill-current" /> Gerar Diagnóstico</>}
             </Button>
           </CardContent>
         </Card>
@@ -191,12 +189,20 @@ export default function DiagnosticPage() {
                   <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2"><AlertCircle className="w-3 h-3" /> Causas Prováveis</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {diagnosisResult.possible_causes.map((c, i) => (
-                      <div key={i} className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-sm text-slate-700 font-bold flex gap-3"><span className="text-indigo-400">•</span> {c}</div>
+                      <div key={i} className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-sm text-slate-700 font-bold flex gap-3">
+                        <span className="text-indigo-400 shrink-0">•</span> 
+                        {/* FIX: Renderização defensiva para evitar [object Object] */}
+                        <span>
+                          {typeof c === 'string' ? c : (
+                            (c as any).text || (c as any).description || (c as any).cause || JSON.stringify(c)
+                          )}
+                        </span>
+                      </div>
                     ))}
                   </div>
                 </div>
                 <div>
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2"><Wrench className="w-3 h-3" /> Plano de Ação Sugerido</h4>
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2"><Wrench className="w-3 h-3" /> Plano de Ação</h4>
                   <div className="space-y-4">
                     {diagnosisResult.solutions.map((s, i) => (
                       <div key={i} className="p-6 border border-indigo-50 rounded-2xl bg-white shadow-sm hover:shadow-md transition-shadow">
@@ -205,8 +211,16 @@ export default function DiagnosticPage() {
                           <Badge className={`${s.difficulty === 'Fácil' ? 'bg-green-100 text-green-700' : s.difficulty === 'Média' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'} border-transparent px-3 py-1`}>{s.difficulty}</Badge>
                         </div>
                         <div className="space-y-3">
+                          {/* Garante a exibição de TODOS os passos gerados */}
                           {s.steps.map((step, si) => (
-                            <div key={si} className="text-sm text-slate-600 flex gap-4 items-start"><span className="flex items-center justify-center w-6 h-6 rounded-full bg-indigo-50 text-indigo-600 font-black text-[10px] shrink-0">{si+1}</span><p className="pt-0.5 leading-relaxed font-medium">{step}</p></div>
+                            <div key={si} className="text-sm text-slate-600 flex gap-4 items-start">
+                              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-indigo-50 text-indigo-600 font-black text-[10px] shrink-0">{si+1}</span>
+                              <p className="pt-0.5 leading-relaxed font-medium">
+                                {typeof step === 'string' ? step : (
+                                  (step as any).text || (step as any).description || JSON.stringify(step)
+                                )}
+                              </p>
+                            </div>
                           ))}
                         </div>
                       </div>
@@ -217,10 +231,10 @@ export default function DiagnosticPage() {
             </Card>
 
             <Card className="bg-slate-900 border-none shadow-2xl overflow-hidden">
-              <CardHeader className="border-b border-slate-800 bg-slate-800/50"><div className="flex items-center gap-2 text-white font-black uppercase tracking-widest text-xs"><Send className="w-5 h-5 text-indigo-400" /> Validar Solução em Campo</div></CardHeader>
+              <CardHeader className="border-b border-slate-800 bg-slate-800/50"><div className="flex items-center gap-2 text-white font-black uppercase tracking-widest text-xs"><Send className="w-5 h-5 text-indigo-400" /> Registrar Visita / Atendimento</div></CardHeader>
               <CardContent className="space-y-6 pt-6">
                 <div className="grid grid-cols-1 gap-3">
-                  {[{ id: 'salvar_depois', title: 'Apenas Registrar', desc: 'Registrar ocorrência sem resolução imediata.' }, { id: 'conforme_manual', title: 'Resolvido (Seguindo IA)', desc: 'As orientações acima solucionaram o problema.' }, { id: 'forma_diferente', title: 'Resolvido (Método Alternativo)', desc: 'Solucionado através de outro procedimento.' }].map((opt) => (
+                  {[{ id: 'salvar_depois', title: 'Apenas Registrar', desc: 'Sair sem resolver no momento.' }, { id: 'conforme_manual', title: 'Resolvido com IA', desc: 'As orientações acima funcionaram.' }, { id: 'forma_diferente', title: 'Resolvido (Alternativo)', desc: 'Solucionado de outra forma.' }].map((opt) => (
                     <div key={opt.id} onClick={() => setResolutionType(opt.id as any)} className={`flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${resolutionType === opt.id ? 'bg-indigo-600 border-indigo-400' : 'bg-slate-800 border-slate-700 hover:border-slate-600'}`}>
                       <div className={`mt-1 w-5 h-5 rounded-full border-2 flex items-center justify-center ${resolutionType === opt.id ? 'border-white bg-white' : 'border-slate-500'}`}>{resolutionType === opt.id && <div className="w-2 h-2 rounded-full bg-indigo-600" />}</div>
                       <div><p className={`font-bold ${resolutionType === opt.id ? 'text-white' : 'text-slate-300'}`}>{opt.title}</p><p className={`text-xs ${resolutionType === opt.id ? 'text-indigo-100' : 'text-slate-500'}`}>{opt.desc}</p></div>
@@ -229,12 +243,12 @@ export default function DiagnosticPage() {
                 </div>
                 <div className="space-y-4 pt-4">
                   <div className="grid md:grid-cols-2 gap-4">
-                    <div><Label className="text-slate-400">Técnico Executor *</Label><Input className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 focus:ring-indigo-500" placeholder="Seu nome completo" value={technicianName} onChange={e => setTechnicianName(e.target.value)} /></div>
-                    {resolutionType === 'forma_diferente' && (<div className="animate-in fade-in slide-in-from-left-2"><Label className="text-indigo-400 font-bold">O que foi realizado? *</Label><Input className="bg-slate-800 border-indigo-900 text-white placeholder:text-slate-400" placeholder="Descreva sua solução" value={actualSolution} onChange={e => setActualSolution(e.target.value)} /></div>)}
+                    <div><Label className="text-slate-400">Técnico executor *</Label><Input className="bg-slate-800 border-slate-700 text-white focus:ring-indigo-500" placeholder="Seu nome" value={technicianName} onChange={e => setTechnicianName(e.target.value)} /></div>
+                    {resolutionType === 'forma_diferente' && (<div className="animate-in fade-in"><Label className="text-indigo-400 font-bold">O que foi feito? *</Label><Input className="bg-slate-800 border-indigo-900 text-white" placeholder="Descrição da solução" value={actualSolution} onChange={e => setActualSolution(e.target.value)} /></div>)}
                   </div>
-                  <div><Label className="text-slate-400">Notas de Campo / Peças Trocadas</Label><Textarea className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 focus:ring-indigo-500" placeholder="Ex: Trocado relé de partida, fiação estava oxidada..." value={attachmentNotes} onChange={e => setAttachmentNotes(e.target.value)} /></div>
-                  <Button onClick={handleSaveFeedback} disabled={isSaving} className="w-full h-14 bg-indigo-600 hover:bg-indigo-500 font-black uppercase text-lg rounded-xl shadow-lg transition-transform active:scale-[0.98]">
-                    {isSaving ? <><Loader2 className="animate-spin mr-2" /> Sincronizando...</> : 'Enviar para Nuvem Tecnoloc'}
+                  <div><Label className="text-slate-400">Notas de Campo</Label><Textarea className="bg-slate-800 border-slate-700 text-white" placeholder="Peças trocadas, detalhes técnicos..." value={attachmentNotes} onChange={e => setAttachmentNotes(e.target.value)} /></div>
+                  <Button onClick={handleSaveFeedback} disabled={isSaving} className="w-full h-14 bg-indigo-600 font-black uppercase text-lg shadow-lg">
+                    {isSaving ? <Loader2 className="animate-spin" /> : 'Sincronizar com Tecnoloc'}
                   </Button>
                 </div>
               </CardContent>
