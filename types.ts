@@ -1,4 +1,3 @@
-
 export interface DiagnosticResult {
   possible_causes: string[];
   solutions: {

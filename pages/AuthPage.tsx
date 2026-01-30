@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Mail, Lock, LogIn, UserPlus, ArrowRight, ShieldCheck, Loader2, KeyRound } from 'lucide-react';
+import { Mail, Lock, LogIn, UserPlus, ArrowRight, ShieldCheck, Loader2 } from 'lucide-react';
 import { Card, CardContent, Button, Input, Label } from '../components/UI';
 import { dataService } from '../services/dataService';
 import { toast } from 'sonner';
@@ -68,7 +68,7 @@ export default function AuthPage() {
 
   if (isForcedChange) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-[#0a0f1e] font-sans relative overflow-hidden">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-[#0a0f1e] font-sans relative overflow-hidden w-full">
         <div className="w-full max-w-md relative z-10 text-center">
            <div className="inline-block p-4 bg-white rounded-3xl mb-6 shadow-2xl">
             <img 
@@ -111,7 +111,7 @@ export default function AuthPage() {
                     placeholder="Repita a nova senha" 
                   />
                 </div>
-                <Button type="submit" disabled={loading} className="w-full h-14 bg-[#4338ca] hover:bg-indigo-600 font-black uppercase text-lg shadow-xl">
+                <Button type="submit" disabled={loading} className="w-full h-14 bg-[#4338ca] hover:bg-indigo-600 font-black uppercase text-lg shadow-xl text-white">
                   {loading ? <Loader2 className="animate-spin" /> : 'Confirmar'}
                 </Button>
               </form>
@@ -123,7 +123,7 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-[#0a0f1e] overflow-y-auto relative font-sans">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-[#0a0f1e] overflow-y-auto relative font-sans w-full">
       <div className="w-full max-w-md relative z-10 flex flex-col items-center">
         
         {/* Banner Logo */}
@@ -149,7 +149,7 @@ export default function AuthPage() {
                     required 
                     value={email}
                     onChange={e => setEmail(e.target.value)}
-                    className="pl-11 bg-slate-100 border-2 border-transparent focus:border-indigo-500 text-black h-14 placeholder:text-slate-400 rounded-xl" 
+                    className="pl-11 bg-slate-100 border-2 border-transparent focus:border-indigo-500 text-black h-14 placeholder:text-slate-400 rounded-xl w-full" 
                     placeholder="usuario@tecnoloc.com" 
                   />
                 </div>
@@ -164,7 +164,7 @@ export default function AuthPage() {
                     required 
                     value={password}
                     onChange={e => setPassword(e.target.value)}
-                    className="pl-11 bg-slate-100 border-2 border-transparent focus:border-indigo-500 text-black h-14 placeholder:text-slate-400 rounded-xl" 
+                    className="pl-11 bg-slate-100 border-2 border-transparent focus:border-indigo-500 text-black h-14 placeholder:text-slate-400 rounded-xl w-full" 
                     placeholder="••••••••" 
                   />
                 </div>
@@ -172,7 +172,7 @@ export default function AuthPage() {
 
               <Button type="submit" disabled={loading} className="w-full h-14 bg-[#3b49df] hover:bg-[#2a38c4] text-white font-black uppercase text-lg shadow-lg transition-all rounded-xl">
                 {loading ? <Loader2 className="animate-spin" /> : (
-                  <span className="flex items-center gap-2">
+                  <span className="flex items-center justify-center gap-2">
                     <LogIn className="w-6 h-6" /> Acessar Sistema
                   </span>
                 )}

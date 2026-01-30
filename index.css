@@ -1,0 +1,15 @@
+
+/* Estilos globais básicos */
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #0a0f1e;
+  color: white;
+}
+
+/* Ajuste fino para garantir que o root ocupe a tela toda */
+#root {
+  min-height: 100vh;
+}

@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tecnoloc - Diagnóstico Inteligente</title>
     <meta name="mobile-web-app-capable" content="yes">
+    <!-- Tailwind CDN é necessário para processar as classes CSS no navegador -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <script type="importmap">
 {
   "imports": {
@@ -24,9 +26,14 @@
   }
 }
 </script>
+<style>
+  /* Fallback para garantir fundo escuro caso o Tailwind demore a carregar */
+  body { background-color: #0a0f1e; margin: 0; }
+</style>
 </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="index.tsx"></script>
+    <!-- Caminho relativo explícito para evitar erros de resolução -->
+    <script type="module" src="./index.tsx"></script>
   </body>
 </html>

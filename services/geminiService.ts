@@ -12,13 +12,12 @@ export const geminiService = {
     imageBase64: string | null,
     retryCount = 0
   ): Promise<DiagnosticResult> => {
-    // Usando import.meta.env conforme solicitado para ambiente Vite
-    const apiKey = (import.meta as any).env.VITE_GEMINI_API_KEY || (import.meta as any).env.API_KEY || (process as any).env.API_KEY;
+    // Usando import.meta.env conforme solicitado
+    const apiKey = (import.meta as any).env.VITE_GEMINI_API_KEY || (import.meta as any).env.API_KEY;
     const ai = new GoogleGenAI({ apiKey });
 
-    // Mantendo os modelos de última geração conforme as diretrizes obrigatórias do sistema
-    // gemini-3-pro-preview e gemini-3-flash-preview são os nomes oficiais suportados nesta SDK
-    const modelName = retryCount > 1 ? 'gemini-3-flash-preview' : 'gemini-3-pro-preview';
+    // Atualizado para os modelos 1.5 conforme solicitado pelo usuário
+    const modelName = retryCount > 1 ? 'gemini-1.5-flash' : 'gemini-1.5-pro';
 
     const systemInstruction = `
       VOCÊ É UM ENGENHEIRO DE MANUTENÇÃO EXPERT DA TECNOLOC.
