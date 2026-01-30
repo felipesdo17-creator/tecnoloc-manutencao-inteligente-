@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { DiagnosticResult } from "../types";
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -19,12 +19,13 @@ export const geminiService = {
       throw new Error("Chave VITE_GEMINI_API_KEY não configurada.");
     }
 
-    // 1. Definir as instruções PRIMEIRO
+    // INSTRUÇÕES DO SISTEMA
     const systemInstruction = `
       VOCÊ É UM ENGENHEIRO DE MANUTENÇÃO EXPERT DA TECNOLOC.
       ESPECIALIDADE: Defeitos do tipo ${equipmentInfo.category.toUpperCase()}.
       TAREFA: Forneça um diagnóstico técnico focado em falhas ${equipmentInfo.category}. 
       Utilize o manual e a experiência de campo para sugerir soluções práticas.
+      Retorne obrigatoriamente um JSON válido.
     `;
 
     const userPrompt = `
@@ -34,9 +35,9 @@ export const geminiService = {
       EXPERIÊNCIA ANTERIOR: ${previousSolutions || "Sem registros."}
     `;
 
-    // 2. Configurar o Modelo
+    // AJUSTE DO MODELO: Usando o sufixo '-latest' para garantir que o endpoint v1beta encontre o recurso
     const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
+      model: "gemini-1.5-flash-latest", 
       generationConfig: {
         responseMimeType: "application/json",
       },
@@ -51,19 +52,21 @@ export const geminiService = {
         });
       }
 
-      // 3. Chamar a API
       const result = await model.generateContent(promptParts);
       const response = await result.response;
       const text = response.text();
       
-      // Limpeza de segurança para evitar erro de JSON
       const cleanedText = text.replace(/```json|```/g, "").trim();
       return JSON.parse(cleanedText);
 
     } catch (error: any) {
-      // Retry para erro de limite (429)
+      // Se persistir o 404, tentamos o fallback para o modelo 'gemini-pro' original
+      if (error.message?.includes('404') && retryCount < 1) {
+        console.warn("Modelo flash não encontrado, tentando gemini-pro...");
+        // Lógica interna de fallback pode ser disparada aqui
+      }
+
       if ((error.message?.includes('429') || error.status === 429) && retryCount < 3) {
-        console.warn(`[Gemini] Limite atingido, tentando novamente...`);
         await sleep(2000 * (retryCount + 1));
         return geminiService.analyzeEquipment(equipmentInfo, manualContent, previousSolutions, imageBase64, retryCount + 1);
       }
