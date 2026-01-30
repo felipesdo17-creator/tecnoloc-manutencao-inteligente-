@@ -5,6 +5,29 @@ import { DiagnosticResult } from "../types";
 const GROQ_API_KEY = (process.env as any).API_KEY || (import.meta as any).env?.VITE_GROQ_API_KEY;
 
 /**
+ * Converte qualquer valor em uma string pura, extraindo conteúdo de objetos se necessário.
+ * Evita o erro [object Object] no frontend.
+ */
+function forceString(val: any): string {
+  if (val === null || val === undefined) return "";
+  if (typeof val === 'string') return val;
+  if (typeof val === 'object') {
+    // Tenta encontrar chaves comuns que contenham o texto real
+    const priorityKeys = ['text', 'description', 'desc', 'item', 'causa', 'valor', 'value', 'passo', 'step', 'instrucao'];
+    for (const key of priorityKeys) {
+      if (val[key] && typeof val[key] === 'string') return val[key];
+    }
+    // Se não encontrar chaves conhecidas, tenta pegar a primeira propriedade que seja string
+    const firstStringKey = Object.keys(val).find(k => typeof val[k] === 'string');
+    if (firstStringKey) return val[firstStringKey];
+    
+    // Fallback final
+    return JSON.stringify(val);
+  }
+  return String(val);
+}
+
+/**
  * Função utilitária para normalizar a resposta da IA.
  * Mapeia sinônimos e garante que a estrutura DiagnosticResult seja respeitada.
  */
@@ -25,15 +48,7 @@ function sanitizeResult(data: any): DiagnosticResult {
   
   if (causesKey) {
     const rawCauses = Array.isArray(data[causesKey]) ? data[causesKey] : [data[causesKey]];
-    // Garante que cada item seja uma string, extraindo de objetos se necessário
-    result.possible_causes = rawCauses.map((c: any) => {
-      if (typeof c === 'string') return c;
-      if (typeof c === 'object' && c !== null) {
-        const subKey = Object.keys(c).find(k => /text|desc|item|causa|val/i.test(k));
-        return subKey ? String(c[subKey]) : JSON.stringify(c);
-      }
-      return String(c);
-    });
+    result.possible_causes = rawCauses.map(forceString).filter(s => s.trim() !== "");
   }
 
   // 2. Localizar Soluções (Sinônimos: solutions, solucoes, plano_acao, remedios, steps)
@@ -49,6 +64,10 @@ function sanitizeResult(data: any): DiagnosticResult {
         return { title: 'Ação Recomendada', steps: [s], difficulty: 'Média' as const };
       }
 
+      if (typeof s !== 'object' || s === null) {
+        return { title: 'Solução Técnica', steps: [forceString(s)], difficulty: 'Média' as const };
+      }
+
       const sKeys = Object.keys(s);
       const tKey = sKeys.find(k => /tit|nome|sub|desc/i.test(k)) || 'title';
       const stKey = sKeys.find(k => /step|passo|acao|procedimento|lista/i.test(k)) || 'steps';
@@ -59,24 +78,17 @@ function sanitizeResult(data: any): DiagnosticResult {
       if (rawDiff.includes('fácil') || rawDiff.includes('easy') || rawDiff.includes('facil')) difficulty = 'Fácil';
       if (rawDiff.includes('difícil') || rawDiff.includes('hard') || rawDiff.includes('dificil')) difficulty = 'Difícil';
 
-      const rawSteps = Array.isArray(s[stKey]) ? s[stKey] : [String(s[stKey] || 'Verificar componente')];
+      const rawSteps = Array.isArray(s[stKey]) ? s[stKey] : [s[stKey]];
       
       return {
-        title: s[tKey] || 'Solução Técnica',
-        // Garante que os passos também sejam strings puras
-        steps: rawSteps.map((step: any) => {
-            if (typeof step === 'string') return step;
-            if (typeof step === 'object' && step !== null) {
-                const stepSubKey = Object.keys(step).find(k => /text|desc|step|instrucao/i.test(k));
-                return stepSubKey ? String(step[stepSubKey]) : JSON.stringify(step);
-            }
-            return String(step);
-        }),
+        title: forceString(s[tKey]) || 'Solução Técnica',
+        steps: rawSteps.map(forceString).filter(step => step.trim() !== ""),
         difficulty
       };
     });
   }
 
+  // Fallback de segurança
   if (result.solutions.length === 0 && result.possible_causes.length > 0) {
     result.solutions = [{
       title: "Inspeção e Verificação",
@@ -100,22 +112,23 @@ export const aiService = {
       throw new Error("Chave de API não configurada.");
     }
 
-    const model = imageBase64 ? "llama-3.2-90b-vision-preview" : "llama-3.3-70b-versatile";
+    // Atualizado para usar 11b-vision-preview para imagens e 70b-versatile para texto
+    const model = imageBase64 ? "llama-3.2-11b-vision-preview" : "llama-3.3-70b-versatile";
 
     const systemInstruction = `VOCÊ É O ENGENHEIRO CHEFE DE MANUTENÇÃO DA TECNOLOC.
-Forneça diagnósticos técnicos de alta precisão para equipamentos de frota.
+Forneça diagnósticos técnicos de alta precisão para equipamentos de frota industrial.
 
 DIRETRIZES PARA RESPOSTA:
 1. IDENTIFIQUE pelo menos 3 causas prováveis.
-2. DETALHE cada solução com um passo-a-passo técnico (mínimo 3 passos por solução).
-3. Seja pragmático e direto.
+2. DETALHE cada solução com um plano de ação passo-a-passo (mínimo 3 passos por solução).
+3. Seja pragmático, técnico e direto ao ponto.
 4. Categoria: ${equipmentInfo.category.toUpperCase()}.
-5. MANUAL: ${manualContent || "Não fornecido (use base técnica)"}.
-6. HISTÓRICO: ${previousSolutions || "Nenhum histórico disponível"}.
+5. MANUAL TÉCNICO: ${manualContent || "Não fornecido (baseie-se em conhecimento de engenharia)"}.
+6. HISTÓRICO DE CAMPO: ${previousSolutions || "Nenhum histórico disponível"}.
 
-OBRIGATÓRIO: Retorne apenas JSON seguindo estritamente:
+OBRIGATÓRIO: Responda EXCLUSIVAMENTE em formato JSON:
 {
-  "possible_causes": ["Causa 1", "Causa 2"],
+  "possible_causes": ["Causa 1", "Causa 2", "Causa 3"],
   "solutions": [
     {
       "title": "Título da Solução",
@@ -126,8 +139,8 @@ OBRIGATÓRIO: Retorne apenas JSON seguindo estritamente:
 }`;
 
     const userPrompt = `EQUIPAMENTO: ${equipmentInfo.name} (${equipmentInfo.brand} ${equipmentInfo.model})
-DEFEITO: "${equipmentInfo.defect}"
-Gere o diagnóstico completo.`;
+DEFEITO RELATADO: "${equipmentInfo.defect}"
+Gere o diagnóstico técnico completo e o plano de ação.`;
 
     const messages: any[] = [
       { role: "system", content: systemInstruction },
@@ -160,7 +173,7 @@ Gere o diagnóstico completo.`;
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error?.message || "Erro API");
+        throw new Error(errorData.error?.message || "Erro de comunicação com a API de IA");
       }
 
       const data = await response.json();
@@ -168,7 +181,7 @@ Gere o diagnóstico completo.`;
       return sanitizeResult(rawContent);
       
     } catch (error: any) {
-      console.error("Erro IA:", error);
+      console.error("Erro Crítico no Serviço de IA:", error);
       throw error;
     }
   }
