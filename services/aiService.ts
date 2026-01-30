@@ -1,9 +1,8 @@
 
 import { DiagnosticResult } from "../types";
 
-// Em ambientes de sandbox e plataformas de visualização, a chave é injetada em process.env.API_KEY.
-// Em um projeto Vite local, você usaria import.meta.env.VITE_GROQ_API_KEY.
-const GROQ_API_KEY = process.env.API_KEY;
+// Prioriza process.env.API_KEY conforme diretrizes de segurança do ambiente
+const GROQ_API_KEY = process.env.API_KEY || (import.meta as any).env?.VITE_GROQ_API_KEY;
 
 export const aiService = {
   analyzeEquipment: async (
@@ -14,31 +13,32 @@ export const aiService = {
   ): Promise<DiagnosticResult> => {
     
     if (!GROQ_API_KEY) {
-      throw new Error("Chave de API não encontrada (process.env.API_KEY). Verifique as configurações do ambiente.");
+      throw new Error("Chave de API não configurada. Verifique as variáveis de ambiente.");
     }
 
     const systemInstruction = `
       VOCÊ É O ENGENHEIRO CHEFE DE MANUTENÇÃO DA TECNOLOC.
-      Sua missão é fornecer diagnósticos técnicos de alta precisão para equipamentos industriais.
+      Sua missão é fornecer diagnósticos técnicos de alta precisão para equipamentos industriais (geradores, torres, compressores).
 
-      DADOS DISPONÍVEIS:
-      1. MANUAL TÉCNICO: ${manualContent || "Não disponível (use conhecimento genérico)."}
-      2. HISTÓRICO DE CAMPO: ${previousSolutions || "Sem histórico prévio."}
+      DADOS DE ENTRADA:
+      - MANUAL TÉCNICO: ${manualContent || "Não disponível (use seu conhecimento de base)."}
+      - HISTÓRICO DE CAMPO: ${previousSolutions || "Sem registros anteriores para este caso específico."}
 
       DIRETRIZES:
       - Categoria da falha: ${equipmentInfo.category.toUpperCase()}.
-      - Seja pragmático. Sugira passos acionáveis em canteiro de obras.
-      - Se houver histórico de campo, priorize essas soluções.
-      - O campo 'difficulty' deve ser: 'Fácil', 'Média' ou 'Difícil'.
+      - Seja pragmático: sugira passos que um técnico pode realizar no canteiro de obras.
+      - Prioridade: Se houver histórico de campo, coloque essas soluções no topo.
+      - Dificuldade: Use apenas 'Fácil', 'Média' ou 'Difícil'.
 
-      RETORNE APENAS UM JSON VÁLIDO:
+      RESPOSTA:
+      Você DEVE retornar obrigatoriamente um objeto JSON com esta estrutura:
       {
-        "possible_causes": ["Causa 1", "Causa 2"],
+        "possible_causes": ["Causa A", "Causa B"],
         "solutions": [
           {
             "title": "Título da Solução",
             "steps": ["Passo 1", "Passo 2"],
-            "difficulty": "Fácil|Média|Difícil"
+            "difficulty": "Fácil"
           }
         ]
       }
@@ -46,8 +46,8 @@ export const aiService = {
 
     const userPrompt = `
       EQUIPAMENTO: ${equipmentInfo.name} (${equipmentInfo.brand} ${equipmentInfo.model})
-      DEFEITO RELATADO: "${equipmentInfo.defect}"
-      ${imageBase64 ? "Nota: Há uma imagem anexada para suporte visual." : ""}
+      RELATO DO TÉCNICO: "${equipmentInfo.defect}"
+      ${imageBase64 ? "Nota: Há uma imagem anexada para análise visual." : ""}
     `;
 
     try {
@@ -64,14 +64,14 @@ export const aiService = {
             { role: "user", content: userPrompt }
           ],
           response_format: { type: "json_object" },
-          temperature: 0.2,
-          max_tokens: 2048
+          temperature: 0.1, // Temperatura baixa para maior consistência técnica
+          max_tokens: 1500
         })
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error?.message || "Erro na API do Groq.");
+        throw new Error(errorData.error?.message || "Erro na comunicação com o Groq.");
       }
 
       const data = await response.json();
@@ -79,7 +79,7 @@ export const aiService = {
       
       return JSON.parse(content);
     } catch (error: any) {
-      console.error("Erro no AI Service (Groq):", error);
+      console.error("Erro no Groq Service:", error);
       throw error;
     }
   }

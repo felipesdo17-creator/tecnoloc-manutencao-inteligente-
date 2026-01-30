@@ -6,8 +6,7 @@ import {
   ShieldCheck, Camera, X, ImageIcon,
   Wrench, Zap, Layers, FileText, Send, AlertCircle
 } from 'lucide-react';
-// Switched from aiService (Groq) to geminiService (Gemini) as per app guidelines
-import { geminiService } from '../services/geminiService';
+import { aiService } from '../services/aiService';
 import { dataService } from '../services/dataService';
 import { DiagnosticResult } from '../types';
 import { Card, CardContent, CardHeader, Button, Input, Label, Textarea, Badge } from '../components/UI';
@@ -70,8 +69,8 @@ export default function DiagnosticPage() {
         });
       }
 
-      // Using geminiService for high-quality technical diagnostics
-      const result = await geminiService.analyzeEquipment(
+      // Utilizando o novo aiService (Groq Llama 3.3) para maior performance
+      const result = await aiService.analyzeEquipment(
         { 
           name: formData.equipment_name, 
           brand: formData.brand, 
@@ -84,10 +83,10 @@ export default function DiagnosticPage() {
         base64Image
       );
       setDiagnosisResult(result);
-      toast.success('Diagnóstico concluído via Gemini AI!');
+      toast.success('Diagnóstico concluído com sucesso!');
     } catch (error: any) {
       console.error(error);
-      setErrorStatus(error.message || "Falha na análise técnica. Verifique a conexão com a API.");
+      setErrorStatus(error.message || "Falha na análise técnica. Verifique as credenciais do Groq.");
       toast.error("Erro na comunicação com a IA.");
     } finally { 
       setIsAnalyzing(false); 
@@ -110,7 +109,7 @@ export default function DiagnosticPage() {
         technician_notes: actualSolution,
         attachment_notes: attachmentNotes
       });
-      toast.success("Registro salvo com sucesso!");
+      toast.success("Registro salvo no histórico!");
       navigate('/historico');
     } catch (error) { 
       toast.error("Erro ao salvar no banco de dados."); 
@@ -128,23 +127,23 @@ export default function DiagnosticPage() {
 
         <Card className="border-t-4 border-t-indigo-600 shadow-xl mb-8">
           <CardHeader className="bg-slate-50/50">
-            <h2 className="flex items-center gap-3 text-indigo-900 text-xl font-black">
-              <ShieldCheck className="h-6 w-6 text-indigo-600" /> Diagnóstico Inteligente (Gemini)
+            <h2 className="flex items-center gap-3 text-indigo-900 text-xl font-black uppercase tracking-tight">
+              <ShieldCheck className="h-6 w-6 text-indigo-600" /> Diagnóstico de Frota (Llama 3.3)
             </h2>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-1">
                 <Label>Equipamento</Label>
-                <Input value={formData.equipment_name} onChange={e => setFormData({...formData, equipment_name: e.target.value})} placeholder="Ex: Torre" />
+                <Input value={formData.equipment_name} onChange={e => setFormData({...formData, equipment_name: e.target.value})} placeholder="Ex: Gerador" />
               </div>
               <div className="space-y-1">
                 <Label>Marca</Label>
-                <Input value={formData.brand} onChange={e => setFormData({...formData, brand: e.target.value})} placeholder="Ex: Generac" />
+                <Input value={formData.brand} onChange={e => setFormData({...formData, brand: e.target.value})} placeholder="Ex: Atlas Copco" />
               </div>
               <div className="space-y-1">
                 <Label>Modelo</Label>
-                <Input value={formData.model} onChange={e => setFormData({...formData, model: e.target.value})} placeholder="Ex: V20" />
+                <Input value={formData.model} onChange={e => setFormData({...formData, model: e.target.value})} placeholder="Ex: QAS 150" />
               </div>
             </div>
 
@@ -170,9 +169,9 @@ export default function DiagnosticPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Descrição do Defeito</Label>
+              <Label>Relato do Defeito</Label>
               <div className="relative">
-                <Textarea value={formData.defect_description} onChange={e => setFormData({...formData, defect_description: e.target.value})} placeholder="O que está acontecendo?" className="min-h-[100px] pr-12" />
+                <Textarea value={formData.defect_description} onChange={e => setFormData({...formData, defect_description: e.target.value})} placeholder="Descreva os sintomas da falha..." className="min-h-[100px] pr-12" />
                 <button onClick={() => fileInputRef.current?.click()} className="absolute bottom-3 right-3 p-2 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors text-indigo-600">
                   <Camera className="w-5 h-5" />
                 </button>
@@ -196,7 +195,7 @@ export default function DiagnosticPage() {
             )}
 
             <Button onClick={handleAnalyze} disabled={isAnalyzing} className="w-full h-14 font-black uppercase tracking-wider text-lg shadow-indigo-200 shadow-xl bg-indigo-600">
-              {isAnalyzing ? <><Loader2 className="animate-spin mr-2" /> Analisando com Gemini...</> : <><Zap className="mr-2 w-5 h-5 fill-current" /> Iniciar Análise Técnica</>}
+              {isAnalyzing ? <><Loader2 className="animate-spin mr-2" /> Analisando com Llama 3.3...</> : <><Zap className="mr-2 w-5 h-5 fill-current" /> Iniciar Análise Técnica</>}
             </Button>
           </CardContent>
         </Card>
@@ -208,12 +207,12 @@ export default function DiagnosticPage() {
                 <CheckCircle className="w-4 h-4" />
               </div>
               <CardHeader className="bg-green-50/50 pl-10">
-                <h3 className="text-green-800 flex items-center gap-3 font-black">Resultado da Inteligência Artificial</h3>
+                <h3 className="text-green-800 flex items-center gap-3 font-black uppercase text-sm tracking-widest">Diagnóstico Gerado</h3>
               </CardHeader>
               <div className="p-6 space-y-8 pl-10">
                 <div>
                   <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <AlertCircle className="w-3 h-3" /> Causas Prováveis
+                    <AlertCircle className="w-3 h-3" /> Possíveis Causas
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {diagnosisResult.possible_causes.map((c, i) => (
@@ -225,7 +224,7 @@ export default function DiagnosticPage() {
                 </div>
                 <div>
                   <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <Wrench className="w-3 h-3" /> Plano de Ação Recomendado
+                    <Wrench className="w-3 h-3" /> Soluções Recomendadas
                   </h4>
                   <div className="space-y-4">
                     {diagnosisResult.solutions.map((s, i) => (
@@ -256,16 +255,16 @@ export default function DiagnosticPage() {
 
             <Card className="bg-slate-900 border-none shadow-2xl">
               <CardHeader className="border-b border-slate-800">
-                <div className="flex items-center gap-2 text-white font-black uppercase tracking-widest text-sm">
-                  <Send className="w-5 h-5 text-indigo-400" /> Confirmar Resolução em Campo
+                <div className="flex items-center gap-2 text-white font-black uppercase tracking-widest text-xs">
+                  <Send className="w-5 h-5 text-indigo-400" /> Registro de Atendimento
                 </div>
               </CardHeader>
               <CardContent className="space-y-6 pt-6">
                 <div className="grid grid-cols-1 gap-3">
                   {[
-                    { id: 'salvar_depois', title: 'Apenas registrar', desc: 'Problema ainda pendente de solução.' },
-                    { id: 'conforme_manual', title: 'Resolvido (Manual)', desc: 'Soluções sugeridas funcionaram.' },
-                    { id: 'forma_diferente', title: 'Resolvido (Alternativo)', desc: 'Usei outro método eficaz.' }
+                    { id: 'salvar_depois', title: 'Pendente', desc: 'Problema não resolvido, registrar visita.' },
+                    { id: 'conforme_manual', title: 'Resolvido (IA/Manual)', desc: 'Soluções propostas aplicadas com sucesso.' },
+                    { id: 'forma_diferente', title: 'Resolvido (Alternativo)', desc: 'Utilizada solução extra-manual.' }
                   ].map((opt) => (
                     <div 
                       key={opt.id} 
@@ -291,17 +290,17 @@ export default function DiagnosticPage() {
                       <Label className="text-slate-400">Técnico Responsável *</Label>
                       <Input 
                         className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 focus:ring-indigo-500" 
-                        placeholder="Nome completo" 
+                        placeholder="Seu nome" 
                         value={technicianName} 
                         onChange={e => setTechnicianName(e.target.value)} 
                       />
                     </div>
                     {resolutionType === 'forma_diferente' && (
                       <div className="animate-in fade-in slide-in-from-left-2">
-                        <Label className="text-indigo-400 font-bold">O que foi feito? *</Label>
+                        <Label className="text-indigo-400 font-bold">Resumo da Solução *</Label>
                         <Input 
                           className="bg-slate-800 border-indigo-900 text-white placeholder:text-slate-400" 
-                          placeholder="Descreva a solution alternativa" 
+                          placeholder="O que resolveu o problema?" 
                           value={actualSolution} 
                           onChange={e => setActualSolution(e.target.value)} 
                         />
@@ -310,17 +309,17 @@ export default function DiagnosticPage() {
                   </div>
                   
                   <div>
-                    <Label className="text-slate-400">Observações Finais / Peças Substituídas</Label>
+                    <Label className="text-slate-400">Notas Adicionais / Peças Utilizadas</Label>
                     <Textarea 
                       className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500" 
-                      placeholder="Ex: Trocado sensor de óleo, nível estava normal..." 
+                      placeholder="Ex: Trocado filtro separador de água..." 
                       value={attachmentNotes} 
                       onChange={e => setAttachmentNotes(e.target.value)} 
                     />
                   </div>
 
-                  <Button onClick={handleSaveFeedback} disabled={isSaving} className="w-full h-14 bg-indigo-600 hover:bg-indigo-500 font-black uppercase tracking-widest text-lg">
-                    {isSaving ? <Loader2 className="animate-spin" /> : 'Finalizar Registro na Nuvem'}
+                  <Button onClick={handleSaveFeedback} disabled={isSaving} className="w-full h-14 bg-indigo-600 hover:bg-indigo-500 font-black uppercase tracking-widest text-lg rounded-xl shadow-lg">
+                    {isSaving ? <Loader2 className="animate-spin" /> : 'Finalizar e Enviar para Nuvem'}
                   </Button>
                 </div>
               </CardContent>
