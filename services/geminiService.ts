@@ -1,10 +1,9 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+
+// Use correct import for Google GenAI SDK as per guidelines
+import { GoogleGenAI, Type } from "@google/genai";
 import { DiagnosticResult } from "../types";
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-const genAI = new GoogleGenerativeAI(API_KEY || "");
 
 export const geminiService = {
   analyzeEquipment: async (
@@ -15,17 +14,16 @@ export const geminiService = {
     retryCount = 0
   ): Promise<DiagnosticResult> => {
     
-    if (!API_KEY) {
-      throw new Error("Chave VITE_GEMINI_API_KEY não configurada.");
-    }
+    // The API key must be obtained exclusively from process.env.API_KEY
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-    // INSTRUÇÕES DO SISTEMA
+    // System instruction for the technical diagnostics persona at Tecnoloc
     const systemInstruction = `
       VOCÊ É UM ENGENHEIRO DE MANUTENÇÃO EXPERT DA TECNOLOC.
       ESPECIALIDADE: Defeitos do tipo ${equipmentInfo.category.toUpperCase()}.
       TAREFA: Forneça um diagnóstico técnico focado em falhas ${equipmentInfo.category}. 
       Utilize o manual e a experiência de campo para sugerir soluções práticas.
-      Retorne obrigatoriamente um JSON válido.
+      Retorne obrigatoriamente um JSON válido seguindo a estrutura de DiagnosticResult.
     `;
 
     const userPrompt = `
@@ -35,37 +33,64 @@ export const geminiService = {
       EXPERIÊNCIA ANTERIOR: ${previousSolutions || "Sem registros."}
     `;
 
-    // AJUSTE DO MODELO: Usando o sufixo '-latest' para garantir que o endpoint v1beta encontre o recurso
-    const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash-latest", 
-      generationConfig: {
-        responseMimeType: "application/json",
-      },
-    });
-
     try {
-      const promptParts: any[] = [systemInstruction + "\n\n" + userPrompt];
+      const parts: any[] = [{ text: userPrompt }];
       
       if (imageBase64) {
-        promptParts.push({
+        parts.push({
           inlineData: { mimeType: 'image/jpeg', data: imageBase64 }
         });
       }
 
-      const result = await model.generateContent(promptParts);
-      const response = await result.response;
-      const text = response.text();
+      // Use gemini-3-pro-preview for complex technical reasoning tasks.
+      // Use ai.models.generateContent directly as per @google/genai guidelines.
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-pro-preview',
+        contents: { parts },
+        config: {
+          systemInstruction,
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              possible_causes: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING }
+              },
+              solutions: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    title: { type: Type.STRING },
+                    steps: { 
+                      type: Type.ARRAY, 
+                      items: { type: Type.STRING } 
+                    },
+                    difficulty: { 
+                      type: Type.STRING,
+                      description: "Nível de dificuldade: 'Fácil', 'Média' ou 'Difícil'"
+                    }
+                  },
+                  required: ["title", "steps", "difficulty"],
+                  propertyOrdering: ["title", "steps", "difficulty"]
+                }
+              }
+            },
+            required: ["possible_causes", "solutions"],
+            propertyOrdering: ["possible_causes", "solutions"]
+          }
+        },
+      });
+
+      // Extract text output from response.text property directly
+      const text = response.text;
+      if (!text) throw new Error("O modelo não retornou conteúdo.");
       
-      const cleanedText = text.replace(/```json|```/g, "").trim();
-      return JSON.parse(cleanedText);
+      return JSON.parse(text.trim());
 
     } catch (error: any) {
-      // Se persistir o 404, tentamos o fallback para o modelo 'gemini-pro' original
-      if (error.message?.includes('404') && retryCount < 1) {
-        console.warn("Modelo flash não encontrado, tentando gemini-pro...");
-        // Lógica interna de fallback pode ser disparada aqui
-      }
-
+      // Exponential backoff retry logic for 429 (Rate Limit) errors
       if ((error.message?.includes('429') || error.status === 429) && retryCount < 3) {
         await sleep(2000 * (retryCount + 1));
         return geminiService.analyzeEquipment(equipmentInfo, manualContent, previousSolutions, imageBase64, retryCount + 1);

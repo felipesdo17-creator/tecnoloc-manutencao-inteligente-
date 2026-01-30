@@ -2,30 +2,13 @@
 import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
 import { MaintenanceLog, Manual } from '../types';
 
-// Função auxiliar para obter credenciais do Supabase
+// Função para buscar credenciais priorizando process.env para compatibilidade total
 const getCredential = (key: string): string | undefined => {
-  try {
-    const viteKey = `VITE_${key}`;
-    
-    // 1. Tentar import.meta.env (Padrão Vite)
-    if (typeof import.meta !== 'undefined' && (import.meta as any).env) {
-      const val = (import.meta as any).env[viteKey] || (import.meta as any).env[key];
-      if (val) return val;
-    }
-
-    // 2. Fallback para process.env caso o ambiente injete diretamente
-    if (typeof process !== 'undefined' && process.env) {
-      const val = process.env[viteKey] || process.env[key];
-      if (val) return val;
-    }
-
-    // 3. Fallback para localStorage (Configuração manual se necessário)
-    const localValue = localStorage.getItem(key);
-    if (localValue && localValue !== '') return localValue;
-  } catch (e) {
-    return undefined;
-  }
-  return undefined;
+  const viteKey = `VITE_${key}`;
+  return (process.env as any)[key] || 
+         (process.env as any)[viteKey] || 
+         (import.meta as any).env?.[viteKey] || 
+         (import.meta as any).env?.[key];
 };
 
 let supabaseInstance: SupabaseClient | null = null;
@@ -36,14 +19,13 @@ const getSupabase = (): SupabaseClient | null => {
   const url = getCredential('SUPABASE_URL');
   const key = getCredential('SUPABASE_ANON_KEY');
   
-  if (!url || !url.startsWith('https://') || !key) {
-    return null;
-  }
+  if (!url || !key) return null;
 
   try {
     supabaseInstance = createClient(url, key);
     return supabaseInstance;
   } catch (error) {
+    console.error("Erro ao inicializar Supabase:", error);
     return null;
   }
 };
@@ -53,7 +35,7 @@ export const dataService = {
 
   signIn: async (email: string, pass: string) => {
     const sb = getSupabase();
-    if (!sb) throw new Error("Configuração do banco de dados ausente.");
+    if (!sb) throw new Error("Configuração do Supabase ausente.");
     const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
     if (error) throw error;
     return data;
@@ -61,7 +43,7 @@ export const dataService = {
 
   signUp: async (email: string, pass: string) => {
     const sb = getSupabase();
-    if (!sb) throw new Error("Configuração do banco de dados ausente.");
+    if (!sb) throw new Error("Configuração do Supabase ausente.");
     const { data, error } = await sb.auth.signUp({ email, password: pass });
     if (error) throw error;
     return data;
@@ -69,7 +51,7 @@ export const dataService = {
 
   updatePassword: async (newPassword: string) => {
     const sb = getSupabase();
-    if (!sb) throw new Error("Configuração do banco de dados ausente.");
+    if (!sb) throw new Error("Configuração do Supabase ausente.");
     const { data, error } = await sb.auth.updateUser({ password: newPassword });
     if (error) throw error;
     return data;
@@ -101,7 +83,7 @@ export const dataService = {
 
   saveLog: async (log: Omit<MaintenanceLog, 'id' | 'date'>): Promise<void> => {
     const sb = getSupabase();
-    if (!sb) throw new Error("Configuração do banco de dados ausente.");
+    if (!sb) throw new Error("Configuração do Supabase ausente.");
     const { error } = await sb.from('maintenance_logs').insert([{ ...log, date: new Date().toISOString() }]);
     if (error) throw error;
   },
@@ -115,7 +97,7 @@ export const dataService = {
 
   saveManual: async (manual: Omit<Manual, 'id'>): Promise<Manual> => {
     const sb = getSupabase();
-    if (!sb) throw new Error("Configuração do banco de dados ausente.");
+    if (!sb) throw new Error("Configuração do Supabase ausente.");
     const { data, error } = await sb.from('manuals').insert([manual]).select().single();
     if (error) throw error;
     return data;
@@ -123,7 +105,7 @@ export const dataService = {
 
   deleteManual: async (id: string): Promise<void> => {
     const sb = getSupabase();
-    if (!sb) throw new Error("Configuração do banco de dados ausente.");
+    if (!sb) throw new Error("Configuração do Supabase ausente.");
     const { error } = await sb.from('manuals').delete().eq('id', id);
     if (error) throw error;
   },
@@ -137,7 +119,7 @@ export const dataService = {
 
   uploadFile: async (file: File): Promise<{ file_url: string; file_name: string }> => {
     const sb = getSupabase();
-    if (!sb) throw new Error("Configuração do banco de dados ausente.");
+    if (!sb) throw new Error("Configuração do Supabase ausente.");
     const fileExt = file.name.split('.').pop();
     const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
     const filePath = `manuals/${fileName}`;

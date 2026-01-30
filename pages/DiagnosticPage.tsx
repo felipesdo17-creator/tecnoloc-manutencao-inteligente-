@@ -6,6 +6,7 @@ import {
   ShieldCheck, Camera, X, ImageIcon,
   Wrench, Zap, Layers, FileText, Send, AlertCircle
 } from 'lucide-react';
+// Switched from aiService (Groq) to geminiService (Gemini) as per app guidelines
 import { geminiService } from '../services/geminiService';
 import { dataService } from '../services/dataService';
 import { DiagnosticResult } from '../types';
@@ -69,7 +70,7 @@ export default function DiagnosticPage() {
         });
       }
 
-      // Fixed: Mapped formData keys to match the expected parameter type in geminiService.analyzeEquipment
+      // Using geminiService for high-quality technical diagnostics
       const result = await geminiService.analyzeEquipment(
         { 
           name: formData.equipment_name, 
@@ -83,15 +84,11 @@ export default function DiagnosticPage() {
         base64Image
       );
       setDiagnosisResult(result);
-      toast.success('Diagnóstico concluído!');
+      toast.success('Diagnóstico concluído via Gemini AI!');
     } catch (error: any) {
       console.error(error);
-      if (error.message?.includes('429')) {
-        setErrorStatus("A IA está temporariamente sobrecarregada. Aguarde 30 segundos e tente novamente.");
-      } else {
-        setErrorStatus("Erro na análise técnica. Verifique sua conexão e chaves de API.");
-      }
-      toast.error("Falha no diagnóstico.");
+      setErrorStatus(error.message || "Falha na análise técnica. Verifique a conexão com a API.");
+      toast.error("Erro na comunicação com a IA.");
     } finally { 
       setIsAnalyzing(false); 
     }
@@ -132,7 +129,7 @@ export default function DiagnosticPage() {
         <Card className="border-t-4 border-t-indigo-600 shadow-xl mb-8">
           <CardHeader className="bg-slate-50/50">
             <h2 className="flex items-center gap-3 text-indigo-900 text-xl font-black">
-              <ShieldCheck className="h-6 w-6 text-indigo-600" /> Novo Diagnóstico IA
+              <ShieldCheck className="h-6 w-6 text-indigo-600" /> Diagnóstico Inteligente (Gemini)
             </h2>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -198,8 +195,8 @@ export default function DiagnosticPage() {
               </div>
             )}
 
-            <Button onClick={handleAnalyze} disabled={isAnalyzing} className="w-full h-14 font-black uppercase tracking-wider text-lg shadow-indigo-200 shadow-xl">
-              {isAnalyzing ? <><Loader2 className="animate-spin mr-2" /> Analisando com IA...</> : <><Zap className="mr-2 w-5 h-5 fill-current" /> Iniciar Análise Técnica</>}
+            <Button onClick={handleAnalyze} disabled={isAnalyzing} className="w-full h-14 font-black uppercase tracking-wider text-lg shadow-indigo-200 shadow-xl bg-indigo-600">
+              {isAnalyzing ? <><Loader2 className="animate-spin mr-2" /> Analisando com Gemini...</> : <><Zap className="mr-2 w-5 h-5 fill-current" /> Iniciar Análise Técnica</>}
             </Button>
           </CardContent>
         </Card>
@@ -304,7 +301,7 @@ export default function DiagnosticPage() {
                         <Label className="text-indigo-400 font-bold">O que foi feito? *</Label>
                         <Input 
                           className="bg-slate-800 border-indigo-900 text-white placeholder:text-slate-400" 
-                          placeholder="Descreva a solução alternativa" 
+                          placeholder="Descreva a solution alternativa" 
                           value={actualSolution} 
                           onChange={e => setActualSolution(e.target.value)} 
                         />
