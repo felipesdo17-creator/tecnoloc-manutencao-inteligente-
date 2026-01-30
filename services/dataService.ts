@@ -4,11 +4,21 @@ import { MaintenanceLog, Manual } from '../types';
 
 const getCredential = (key: string): string | undefined => {
   try {
-    let envValue = undefined;
-    if (typeof process !== 'undefined' && process.env) {
-      envValue = (process.env as any)[key];
+    const viteKey = `VITE_${key}`;
+    
+    // 1. Tentar import.meta.env (Vite)
+    if (typeof import.meta !== 'undefined' && (import.meta as any).env) {
+      const val = (import.meta as any).env[viteKey] || (import.meta as any).env[key];
+      if (val) return val;
     }
-    if (envValue && envValue !== '') return envValue;
+
+    // 2. Tentar process.env (Node/Vercel)
+    if (typeof process !== 'undefined' && process.env) {
+      const val = (process.env as any)[viteKey] || (process.env as any)[key];
+      if (val) return val;
+    }
+    
+    // 3. Fallback para localStorage (Manual)
     const localValue = localStorage.getItem(key);
     if (localValue && localValue !== '') return localValue;
   } catch (e) {
@@ -33,9 +43,13 @@ const getSupabase = (): SupabaseClient | null => {
 };
 
 export const dataService = {
-  isConfigured: () => {
-    const sb = getSupabase();
-    return !!sb;
+  isConfigured: () => !!getSupabase(),
+
+  isConfiguredViaEnv: () => {
+    const url = getCredential('SUPABASE_URL');
+    const key = getCredential('SUPABASE_ANON_KEY');
+    // Consideramos configurado via env se as chaves NÃO vierem do localStorage
+    return !!(url && key && !localStorage.getItem('SUPABASE_URL'));
   },
   
   signIn: async (email: string, pass: string) => {
